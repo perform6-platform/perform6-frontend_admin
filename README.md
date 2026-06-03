@@ -12,6 +12,13 @@ npm install
 npm run dev
 ```
 
+## Docker
+
+```bash
+docker compose up -d --build
+# Dev: docker compose -f docker-compose.dev.yml up --build
+```
+
 Open http://localhost:5174
 
 ## Related repos
