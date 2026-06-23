@@ -63,7 +63,7 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        'rounded-card border border-dashed border-surface-border p-12 text-center text-content-muted shadow-card',
+        'rounded-card border border-dashed border-surface-border p-8 text-center text-content-muted shadow-card sm:p-12',
         className,
       )}
       {...props}

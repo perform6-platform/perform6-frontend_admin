@@ -1,11 +1,11 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
-import { X } from 'lucide-react';
+import { LogOut, X } from 'lucide-react';
 import { mainNavigation } from '../../constants/navigation';
 import { PERFORM6_LOGO_URL } from '../../constants/branding';
 import { useMobileNav } from '../../context/MobileNavContext';
 import { cn } from '../../lib/cn';
-import { CARD_SURFACE_CLASS, UserMenu } from '../ui';
+import { CARD_SURFACE_CLASS } from '../ui';
 
 interface SidebarNavItemProps {
   label: string;
@@ -67,6 +67,13 @@ interface SidebarPanelProps {
 }
 
 export function SidebarPanel({ className, onNavigate, showClose, onClose }: SidebarPanelProps) {
+  const navigate = useNavigate();
+
+  function handleLogout() {
+    onNavigate?.();
+    navigate('/login');
+  }
+
   return (
     <div className={cn('flex h-full flex-col', className)}>
       <div className="flex items-center justify-between gap-3 border-b border-surface-border px-4 py-4 sm:px-5 sm:py-5">
@@ -99,7 +106,19 @@ export function SidebarPanel({ className, onNavigate, showClose, onClose }: Side
         ))}
       </nav>
 
-      <UserMenu name="Admin User" role="Super Admin" />
+      <div className="border-t border-surface-border px-4 py-4">
+        <button
+          type="button"
+          onClick={handleLogout}
+          className={cn(
+            'flex items-center gap-3 text-body-sm font-medium text-content-secondary transition-colors',
+            'hover:text-content-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40',
+          )}
+        >
+          <LogOut className="h-[18px] w-[18px] shrink-0" />
+          Logout
+        </button>
+      </div>
     </div>
   );
 }

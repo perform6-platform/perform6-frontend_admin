@@ -183,7 +183,11 @@ export default function Programs() {
       <div className="space-y-4 sm:space-y-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <PageTitle>Programs</PageTitle>
-          <Button size="sm" className="h-9 shrink-0 gap-1.5 px-4" onClick={() => setAddProgramOpen(true)}>
+          <Button
+            size="sm"
+            className="h-9 w-full shrink-0 gap-1.5 px-4 sm:w-auto"
+            onClick={() => setAddProgramOpen(true)}
+          >
             <Plus className="h-4 w-4" />
             Add Program
           </Button>
@@ -206,7 +210,48 @@ export default function Programs() {
 
         <section>
           <SectionLabel className="mb-3 block">Program List</SectionLabel>
-          <Table columns={columns} data={programsWithCounts} rowKey={(row) => row.id} />
+          <Table
+            columns={columns}
+            data={programsWithCounts}
+            rowKey={(row) => row.id}
+            renderMobileCard={(row) => (
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => openManage(row)}
+                  className={cn(
+                    'text-left font-semibold text-content-primary transition-colors hover:text-brand-600 dark:hover:text-brand-400',
+                    row.isSubProgram && 'text-body-sm',
+                  )}
+                >
+                  {row.isSubProgram ? `↳ ${row.name}` : row.name}
+                </button>
+                <p className="text-body-sm text-content-secondary">{row.description}</p>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-caption text-content-muted">
+                  <span>{row.duration}</span>
+                  <span>{row.totalVideos} videos</span>
+                  <span className="font-medium text-status-success">
+                    {row.status === 'active' ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-end gap-1 border-t border-surface-border pt-3">
+                  <IconButton label={`Edit ${row.name}`} onClick={() => openEditProgram(row)}>
+                    <Pencil />
+                  </IconButton>
+                  <IconButton
+                    label={`Delete ${row.name}`}
+                    className="hover:border-red-500/30 hover:text-status-danger"
+                    onClick={() => {
+                      setProgramToDelete(row);
+                      setDeleteProgramOpen(true);
+                    }}
+                  >
+                    <Trash2 />
+                  </IconButton>
+                </div>
+              </div>
+            )}
+          />
         </section>
       </div>
 

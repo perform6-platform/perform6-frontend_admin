@@ -80,12 +80,11 @@ export default function ContentLibrary() {
   return (
     <>
       <div className="space-y-4 sm:space-y-6">
-        <PageTitle>Content Library</PageTitle>
-
-        <div className="flex justify-end">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <PageTitle>Content Library</PageTitle>
           <Button
             size="sm"
-            className="h-9 shrink-0 gap-2 whitespace-nowrap px-4"
+            className="h-9 w-full shrink-0 gap-2 whitespace-nowrap px-4 sm:w-auto"
             onClick={() => setUploadOpen(true)}
           >
             <Upload className="h-4 w-4" />
@@ -108,7 +107,7 @@ export default function ContentLibrary() {
           </div>
 
           <div className="flex flex-col gap-5 border-t border-surface-border p-4 sm:p-5 lg:flex-row lg:gap-8">
-            <div className="shrink-0 border-surface-border lg:border-r lg:pr-6">
+            <div className="shrink-0 lg:border-r lg:border-surface-border lg:pr-6">
               <CategorySidebar activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
             </div>
 

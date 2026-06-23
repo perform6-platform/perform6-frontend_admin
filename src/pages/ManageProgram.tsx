@@ -72,7 +72,7 @@ export default function ManageProgram() {
         <Button
           size="sm"
           variant="outline"
-          className="h-9 shrink-0 gap-2 px-4"
+          className="h-9 w-full shrink-0 gap-2 px-4 sm:w-auto"
           onClick={() =>
             navigate('/content-library', {
               state: { categoryId: activeCategoryId ?? manageableIds[0] },
@@ -103,14 +103,14 @@ export default function ManageProgram() {
       )}
 
       {isPhase1Parent && phase1Group && (
-        <div className="flex flex-wrap gap-2">
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 hide-scrollbar sm:flex-wrap sm:overflow-visible sm:pb-0">
           {phase1Group.children.map((category) => (
             <button
               key={category.id}
               type="button"
               onClick={() => setActiveSubCategory(category.id)}
               className={cn(
-                'rounded-lg border px-3 py-1.5 text-body-sm font-medium transition-colors',
+                'shrink-0 rounded-lg border px-3 py-1.5 text-body-sm font-medium transition-colors',
                 activeSubCategory === category.id
                   ? 'border-brand-500/40 bg-brand-500/10 text-brand-700 dark:text-brand-300'
                   : 'border-surface-border bg-surface-muted text-content-secondary hover:text-content-primary',

@@ -241,8 +241,11 @@ export function NewDeploymentModal({ open, onClose, onSubmit }: NewDeploymentMod
               className="mb-4"
             />
 
-            <div className="overflow-x-auto rounded-lg border border-surface-border">
-              <table className="w-full min-w-[520px] border-collapse text-left">
+            <div className="table-scroll-x overflow-x-auto rounded-lg border border-surface-border">
+              <p className="scroll-hint px-3 py-2 text-caption text-content-muted md:hidden">
+                Swipe to see all columns →
+              </p>
+              <table className="w-full min-w-[480px] border-collapse text-left sm:min-w-[520px]">
                 <thead>
                   <tr className="border-b border-surface-border bg-surface-muted/50">
                     <th className="w-10 px-3 py-3">
@@ -343,7 +346,7 @@ export function NewDeploymentModal({ open, onClose, onSubmit }: NewDeploymentMod
       onClose={handleClose}
       title="New Deployment"
       size="xl"
-      className="max-h-[min(92vh,860px)]"
+      className="max-h-[min(92vh,860px)] sm:max-h-[min(90vh,860px)]"
       footer={
         <>
           <Button type="button" variant="outline" size="sm" className="h-9 px-4" onClick={handleClose}>

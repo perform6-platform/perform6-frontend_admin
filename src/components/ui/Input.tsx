@@ -3,10 +3,11 @@ import { cn } from '../../lib/cn';
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   icon?: ReactNode;
+  endIcon?: ReactNode;
   label?: string;
 }
 
-export function Input({ icon, label, className, ...props }: InputProps) {
+export function Input({ icon, endIcon, label, className, ...props }: InputProps) {
   return (
     <div className={className}>
       {label && (
@@ -24,10 +25,14 @@ export function Input({ icon, label, className, ...props }: InputProps) {
             'hover:border-brand-500/30',
             'focus-visible:border-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20',
             'disabled:cursor-not-allowed disabled:opacity-50',
-            icon && 'pl-9',
+            icon ? 'pl-9' : undefined,
+            endIcon ? 'pr-9' : undefined,
           )}
           {...props}
         />
+        {endIcon && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-content-muted">{endIcon}</span>
+        )}
       </div>
     </div>
   );

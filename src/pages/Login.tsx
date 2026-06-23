@@ -1,0 +1,186 @@
+import { useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  ArrowRight,
+  Cloud,
+  Eye,
+  EyeOff,
+  LineChart,
+  Lock,
+  Mail,
+  Monitor,
+} from 'lucide-react';
+import { Button, Input } from '../components/ui';
+import loginBg from '../assets/login-bg.png';
+
+const FEATURES = [
+  {
+    icon: Monitor,
+    title: 'Centralized Control',
+    description: 'Manage all your BrightSign devices from one powerful dashboard.',
+  },
+  {
+    icon: Cloud,
+    title: 'Offline First',
+    description: 'Reliable playback and content delivery even without an internet connection.',
+  },
+  {
+    icon: LineChart,
+    title: 'Powerful Analytics',
+    description: 'Real-time insights and reports to optimize performance.',
+  },
+] as const;
+
+export default function Login() {
+  const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    navigate('/');
+  }
+
+  return (
+    <div className="login-page flex min-h-screen bg-white text-gray-900">
+      {/* Left marketing panel */}
+      <div className="relative hidden w-1/2 overflow-hidden lg:block">
+        <img
+          src={loginBg}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover object-right"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/50 to-slate-900/20" />
+
+        <div className="relative flex h-full min-h-screen flex-col p-10 xl:p-14">
+          <div className="flex flex-1 items-center">
+            <div className="max-w-md">
+              <h1 className="text-4xl font-bold leading-tight text-white">
+                Smart Fitness.
+              </h1>
+              <p className="mt-1 text-4xl font-bold leading-tight text-indigo-400">
+                Seamless Management.
+              </p>
+              <p className="mt-5 text-sm leading-relaxed text-gray-300">
+                Perform6 is an interactive touchscreen fitness platform built for reliability,
+                offline performance and centralized control.
+              </p>
+
+              <ul className="mt-8 space-y-5">
+                {FEATURES.map(({ icon: Icon, title, description }) => (
+                  <li key={title} className="flex gap-4">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-indigo-500/40 bg-indigo-500/10 text-indigo-400">
+                      <Icon className="h-5 w-5" strokeWidth={1.75} />
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-white">{title}</p>
+                      <p className="mt-0.5 text-xs leading-relaxed text-gray-400">{description}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <p className="shrink-0 text-xs text-gray-500">© 2024 Perform6. All rights reserved.</p>
+        </div>
+      </div>
+
+      {/* Right login form */}
+      <div className="flex w-full flex-col items-center justify-center bg-white px-6 py-10 sm:px-10 lg:w-1/2 lg:px-16 xl:px-20">
+        <div className="w-full max-w-md">
+          <div className="mb-8 text-center">
+            <h2 className="text-3xl font-bold text-gray-900">Welcome Back!</h2>
+            <p className="mt-2 text-sm text-gray-500">
+              Sign in to access your Perform6 admin dashboard.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-gray-800">Email Address</label>
+              <Input
+                type="email"
+                placeholder="Enter your email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                icon={<Mail className="h-4 w-4" strokeWidth={1.75} />}
+                className="login-field [&_input]:h-11"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-gray-800">Password</label>
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Enter your password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                icon={<Lock className="h-4 w-4" strokeWidth={1.75} />}
+                className="login-field [&_input]:h-11"
+                endIcon={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="text-gray-400 transition-colors hover:text-gray-600"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" strokeWidth={1.75} />
+                  ) : (
+                    <Eye className="h-4 w-4" strokeWidth={1.75} />
+                  )}
+                </button>
+                }
+                required
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-indigo-500 focus:ring-indigo-500/30"
+                />
+                <span className="text-sm text-gray-600">Remember me</span>
+              </label>
+              <button
+                type="button"
+                className="text-sm font-medium text-indigo-500 transition-colors hover:text-indigo-600"
+              >
+                Forgot Password?
+              </button>
+            </div>
+
+            <Button
+              type="submit"
+              fullWidth
+              size="lg"
+              className="!border-indigo-500 !bg-indigo-500 hover:!border-indigo-600 hover:!bg-indigo-600"
+            >
+              Sign In
+              <ArrowRight className="h-4 w-4" strokeWidth={2} />
+            </Button>
+          </form>
+
+          <p className="mt-8 text-center text-sm text-gray-500">
+            Don&apos;t have an account?{' '}
+            <button
+              type="button"
+              className="font-medium text-indigo-500 transition-colors hover:text-indigo-600"
+            >
+              Contact your system administrator.
+            </button>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

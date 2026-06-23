@@ -19,59 +19,98 @@ export function PlaybackOverview() {
         loop (Day {ROTATION_DAYS} → Day 1).
       </p>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] border-collapse text-left text-body-sm">
-          <thead>
-            <tr className="border-b border-surface-border">
-              <th className="px-3 py-2.5 text-section-label font-semibold uppercase text-content-muted">
-                Category
-              </th>
-              <th className="px-3 py-2.5 text-section-label font-semibold uppercase text-content-muted">
-                Options
-              </th>
-              <th className="px-3 py-2.5 text-section-label font-semibold uppercase text-content-muted">
-                Playback
-              </th>
-              <th className="px-3 py-2.5 text-section-label font-semibold uppercase text-content-muted">
-                Duration
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {playbackRules.map((rule) => (
-              <tr key={rule.categoryId} className="border-b border-surface-border last:border-0">
-                <td className="px-3 py-3 font-semibold text-content-primary">{rule.label}</td>
-                <td className="px-3 py-3 text-content-secondary">{rule.options}</td>
-                <td className="px-3 py-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {rule.loops ? (
-                      <PlaybackBadge icon={Repeat} label="Loops" tone="brand" />
-                    ) : (
-                      <PlaybackBadge icon={RefreshCw} label="Play once" tone="warning" />
-                    )}
-                    {rule.timeoutMinutes && (
-                      <PlaybackBadge
-                        icon={Clock}
-                        label={`${rule.timeoutMinutes} min timeout`}
-                        tone="neutral"
-                      />
-                    )}
-                    {rule.supportsPause && (
-                      <PlaybackBadge icon={Pause} label="Pause" tone="success" />
-                    )}
-                    {rule.usesRotation && (
-                      <PlaybackBadge icon={RefreshCw} label={`${ROTATION_DAYS}-day rotation`} tone="purple" />
-                    )}
-                  </div>
-                  <p className="mt-1.5 text-caption text-content-muted">{rule.behavior}</p>
-                </td>
-                <td className="px-3 py-3 whitespace-nowrap text-content-secondary">
-                  {rule.approxDuration}
-                </td>
+      <div className="space-y-3 md:hidden">
+        {playbackRules.map((rule) => (
+          <article
+            key={rule.categoryId}
+            className="rounded-lg border border-surface-border bg-surface-muted/20 p-4"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <h3 className="font-semibold text-content-primary">{rule.label}</h3>
+              <span className="text-caption text-content-secondary">{rule.approxDuration}</span>
+            </div>
+            <p className="mt-1 text-caption text-content-muted">{rule.options}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {rule.loops ? (
+                <PlaybackBadge icon={Repeat} label="Loops" tone="brand" />
+              ) : (
+                <PlaybackBadge icon={RefreshCw} label="Play once" tone="warning" />
+              )}
+              {rule.timeoutMinutes && (
+                <PlaybackBadge icon={Clock} label={`${rule.timeoutMinutes} min timeout`} tone="neutral" />
+              )}
+              {rule.supportsPause && <PlaybackBadge icon={Pause} label="Pause" tone="success" />}
+              {rule.usesRotation && (
+                <PlaybackBadge icon={RefreshCw} label={`${ROTATION_DAYS}-day rotation`} tone="purple" />
+              )}
+            </div>
+            <p className="mt-2 text-body-sm text-content-secondary">{rule.behavior}</p>
+          </article>
+        ))}
+      </div>
+
+      <div className="hidden md:block">
+        <p className="scroll-hint mb-2 text-caption text-content-muted lg:hidden">
+          Swipe horizontally on smaller tablets to view all columns →
+        </p>
+        <div className="table-scroll-x overflow-x-auto">
+          <table className="w-full min-w-[640px] border-collapse text-left text-body-sm lg:min-w-[720px]">
+            <thead>
+              <tr className="border-b border-surface-border">
+                <th className="px-3 py-2.5 text-section-label font-semibold uppercase text-content-muted">
+                  Category
+                </th>
+                <th className="px-3 py-2.5 text-section-label font-semibold uppercase text-content-muted">
+                  Options
+                </th>
+                <th className="px-3 py-2.5 text-section-label font-semibold uppercase text-content-muted">
+                  Playback
+                </th>
+                <th className="px-3 py-2.5 text-section-label font-semibold uppercase text-content-muted">
+                  Duration
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {playbackRules.map((rule) => (
+                <tr key={rule.categoryId} className="border-b border-surface-border last:border-0">
+                  <td className="px-3 py-3 font-semibold text-content-primary">{rule.label}</td>
+                  <td className="px-3 py-3 text-content-secondary">{rule.options}</td>
+                  <td className="px-3 py-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {rule.loops ? (
+                        <PlaybackBadge icon={Repeat} label="Loops" tone="brand" />
+                      ) : (
+                        <PlaybackBadge icon={RefreshCw} label="Play once" tone="warning" />
+                      )}
+                      {rule.timeoutMinutes && (
+                        <PlaybackBadge
+                          icon={Clock}
+                          label={`${rule.timeoutMinutes} min timeout`}
+                          tone="neutral"
+                        />
+                      )}
+                      {rule.supportsPause && (
+                        <PlaybackBadge icon={Pause} label="Pause" tone="success" />
+                      )}
+                      {rule.usesRotation && (
+                        <PlaybackBadge
+                          icon={RefreshCw}
+                          label={`${ROTATION_DAYS}-day rotation`}
+                          tone="purple"
+                        />
+                      )}
+                    </div>
+                    <p className="mt-1.5 text-caption text-content-muted">{rule.behavior}</p>
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-3 text-content-secondary">
+                    {rule.approxDuration}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <p className="mt-4 text-caption text-content-muted">

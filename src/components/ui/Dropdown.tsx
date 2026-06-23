@@ -188,6 +188,7 @@ export interface UserMenuProps {
   avatarUrl?: string;
   options?: DropdownOption[];
   onSelect?: (value: string) => void;
+  className?: string;
 }
 
 export function UserMenu({
@@ -197,9 +198,9 @@ export function UserMenu({
   options = [
     { value: 'profile', label: 'Profile' },
     { value: 'settings', label: 'Settings' },
-    { value: 'logout', label: 'Sign out' },
   ],
   onSelect,
+  className,
 }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -216,16 +217,16 @@ export function UserMenu({
   }, []);
 
   return (
-    <div ref={containerRef} className="relative border-t border-surface-border p-4">
+    <div ref={containerRef} className={cn('relative shrink-0', className)}>
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         className={cn(
-          'flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors',
+          'flex items-center gap-2 rounded-lg p-1.5 text-left transition-colors',
           'hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40',
         )}
       >
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-100">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-100">
           {avatarUrl ? (
             <img src={avatarUrl} alt={name} className="h-full w-full object-cover" />
           ) : (
@@ -239,7 +240,7 @@ export function UserMenu({
             </span>
           )}
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="hidden min-w-0 sm:block">
           <p className="truncate text-body-sm font-medium text-content-primary">{name}</p>
           <p className="truncate text-caption text-content-muted">{role}</p>
         </div>
@@ -249,7 +250,7 @@ export function UserMenu({
       </button>
 
       {open && (
-        <ul className="dropdown-menu absolute bottom-full left-4 right-4 z-[100] mb-1 overflow-hidden rounded-lg border border-surface-border py-1 shadow-lg dark:shadow-black/40">
+        <ul className="dropdown-menu absolute right-0 top-full z-[100] mt-1 min-w-[10rem] overflow-hidden rounded-lg border border-surface-border py-1 shadow-lg dark:shadow-black/40">
           {options.map((option) => (
             <li key={option.value} className="bg-surface">
               <button

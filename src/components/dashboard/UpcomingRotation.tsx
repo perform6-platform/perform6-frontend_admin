@@ -1,7 +1,10 @@
 import type { LucideIcon } from 'lucide-react';
 import { Activity, Dumbbell, Flag, Layers, Target } from 'lucide-react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { currentRotationDay, getRotationRowForDay } from '../../constants/rotationSchedule';
+import type { RotationScheduleRow } from '../../constants/rotationSchedule';
+import { currentRotationDay } from '../../constants/rotationSchedule';
+import { useRotationSchedule } from '../../context/RotationScheduleContext';
 import { cn } from '../../lib/cn';
 import { Button } from '../ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
@@ -23,8 +26,7 @@ const accentStyles: Record<RotationAccent, string> = {
   gold: 'bg-gradient-to-br from-amber-500 to-amber-600',
 };
 
-function buildUpcomingItems(day: number): RotationItem[] {
-  const row = getRotationRowForDay(day);
+function buildUpcomingItems(row: RotationScheduleRow | undefined): RotationItem[] {
   if (!row) return [];
 
   return [
@@ -43,27 +45,22 @@ function buildUpcomingItems(day: number): RotationItem[] {
 }
 
 export interface UpcomingRotationCardProps {
-  dayLabel?: string;
-  dateLabel?: string;
-  items?: RotationItem[];
+  day?: number;
 }
 
-export function UpcomingRotationCard({
-  dayLabel = `DAY ${currentRotationDay}`,
-  dateLabel,
-  items = buildUpcomingItems(currentRotationDay),
-}: UpcomingRotationCardProps) {
+export function UpcomingRotationCard({ day = currentRotationDay }: UpcomingRotationCardProps) {
   const navigate = useNavigate();
-  const resolvedDateLabel =
-    dateLabel ?? getRotationRowForDay(currentRotationDay)?.dateLabel ?? '15 Apr 2025';
+  const { getRowByDay } = useRotationSchedule();
+  const row = getRowByDay(day);
+  const items = useMemo(() => buildUpcomingItems(row), [row]);
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Upcoming Rotation</CardTitle>
         <div className="mt-2">
-          <p className="text-xl font-bold text-content-primary sm:text-2xl">{dayLabel}</p>
-          <p className="text-caption text-content-muted">{resolvedDateLabel}</p>
+          <p className="text-xl font-bold text-content-primary sm:text-2xl">DAY {day}</p>
+          <p className="text-caption text-content-muted">{row?.dateLabel ?? '—'}</p>
         </div>
       </CardHeader>
       <CardContent>

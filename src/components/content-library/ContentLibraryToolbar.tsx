@@ -31,7 +31,7 @@ export function ContentLibraryToolbar({
 }: ContentLibraryToolbarProps) {
   return (
     <div className="flex flex-col gap-3 border-b border-surface-border pb-4 xl:flex-row xl:items-center xl:justify-between">
-      <div className="flex flex-wrap gap-1.5">
+      <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 hide-scrollbar sm:flex-wrap sm:overflow-visible sm:pb-0">
         {contentTypeTabs.map((tab) => {
           const isActive = tab.value === activeTab;
           return (
@@ -40,7 +40,7 @@ export function ContentLibraryToolbar({
               type="button"
               onClick={() => onTabChange(tab.value)}
               className={cn(
-                'rounded-md px-3.5 py-1.5 text-body-sm font-medium transition-colors',
+                'shrink-0 rounded-md px-3.5 py-1.5 text-body-sm font-medium transition-colors',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40',
                 isActive
                   ? 'ui-button-primary shadow-sm'
@@ -53,23 +53,28 @@ export function ContentLibraryToolbar({
         })}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center">
         <Dropdown
           options={contentCategoryFilterOptions}
           value={categoryFilter}
           onChange={onCategoryFilterChange}
+          fullWidth
+          className="w-full lg:w-auto"
         />
         <Dropdown
           options={contentTypeFilterOptions}
           value={typeFilter}
           onChange={onTypeFilterChange}
+          fullWidth
+          className="w-full lg:w-auto"
         />
         <Dropdown
           options={contentSortOptions}
           value={sortBy}
           onChange={onSortChange}
           placeholder="Sort"
-          className="[&_button]:w-9 [&_button]:min-w-9 [&_button]:justify-center [&_button_span]:sr-only"
+          fullWidth
+          className="w-full sm:col-span-2 lg:col-span-1 lg:w-auto [&_button]:w-full lg:[&_button]:w-auto"
         />
       </div>
     </div>

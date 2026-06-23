@@ -131,6 +131,20 @@
     display: none;
   }
 
+  .scroll-hint {
+    display: block;
+  }
+
+  @media (min-width: 1280px) {
+    .scroll-hint {
+      display: none;
+    }
+  }
+
+  .table-scroll-x {
+    -webkit-overflow-scrolling: touch;
+  }
+
   .dropdown-menu {
     background-color: var(--color-surface);
     -ms-overflow-style: none;
@@ -457,5 +471,39 @@
 
   html:not(.dark) .rotation-schedule-header-neutral {
     background: #334155;
+  }
+
+  .login-field input.ui-input {
+    height: 2.75rem;
+    border-color: #e5e7eb;
+    background-color: #ffffff;
+    color: #111827;
+  }
+
+  html.dark .login-page {
+    background-color: #ffffff;
+    color: #111827;
+  }
+
+  html.dark .login-page .login-field input.ui-input {
+    border-color: #e5e7eb;
+    background-color: #ffffff;
+    color: #111827;
+    -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
+    -webkit-text-fill-color: #111827;
+  }
+
+  .login-field input.ui-input::placeholder {
+    color: #9ca3af;
+  }
+
+  .login-field input.ui-input:hover {
+    border-color: rgba(99, 102, 241, 0.35);
+  }
+
+  .login-field input.ui-input:focus-visible {
+    border-color: #818cf8;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
   }
 }

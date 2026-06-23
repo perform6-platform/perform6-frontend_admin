@@ -94,35 +94,77 @@ function buildVideoRow(day: number): RotationScheduleRow {
   };
 }
 
-export const mockRotationScheduleRows: RotationScheduleRow[] = [
-  buildVideoRow(14),
-  buildVideoRow(15),
-  buildVideoRow(16),
-  buildVideoRow(17),
-  buildVideoRow(18),
-  {
-    id: 'ellipsis',
-    day: 0,
-    dayLabel: '…',
-    dateLabel: '…',
-    defaultFitness: '…',
-    defaultGolf: '…',
-    startHereFitness: '…',
-    startHereGolf: '…',
-    phase1FitnessWall: '…',
-    phase1FitnessNoWall: '…',
-    phase1GolfWall: '…',
-    phase1GolfNoWall: '…',
-    phase2: '…',
-    fullProgram: '…',
-    isEllipsis: true,
-  },
-  buildVideoRow(36),
+export function createInitialRotationSchedule(): RotationScheduleRow[] {
+  return Array.from({ length: ROTATION_DAYS }, (_, index) => buildVideoRow(index + 1));
+}
+
+export type RotationScheduleColumnKey = keyof Omit<
+  RotationScheduleRow,
+  'id' | 'day' | 'dayLabel' | 'dateLabel' | 'isEllipsis'
+>;
+
+export const rotationEditableColumns: {
+  key: RotationScheduleColumnKey;
+  label: string;
+  group: string;
+  readOnly?: boolean;
+}[] = [
+  { key: 'defaultFitness', label: 'Fitness', group: 'Default', readOnly: true },
+  { key: 'defaultGolf', label: 'Golf', group: 'Default', readOnly: true },
+  { key: 'startHereFitness', label: 'Fitness', group: 'Start Here', readOnly: true },
+  { key: 'startHereGolf', label: 'Golf', group: 'Start Here', readOnly: true },
+  { key: 'phase1FitnessWall', label: 'Fitness (Wall)', group: 'Phase 1' },
+  { key: 'phase1FitnessNoWall', label: 'Fitness (No Wall)', group: 'Phase 1' },
+  { key: 'phase1GolfWall', label: 'Golf (Wall)', group: 'Phase 1' },
+  { key: 'phase1GolfNoWall', label: 'Golf (No Wall)', group: 'Phase 1' },
+  { key: 'phase2', label: 'All Deployments', group: 'Phase 2' },
+  { key: 'fullProgram', label: 'All Deployments', group: 'Full Program' },
 ];
+
+export function getPreviewRotationRows(allRows: RotationScheduleRow[]): RotationScheduleRow[] {
+  const previewDays = [14, 15, 16, 17, 18, 36];
+  const dataRows = previewDays
+    .map((day) => allRows.find((row) => row.day === day))
+    .filter((row): row is RotationScheduleRow => row !== undefined);
+
+  return [
+    ...dataRows.slice(0, 5),
+    {
+      id: 'ellipsis',
+      day: 0,
+      dayLabel: '…',
+      dateLabel: '…',
+      defaultFitness: '…',
+      defaultGolf: '…',
+      startHereFitness: '…',
+      startHereGolf: '…',
+      phase1FitnessWall: '…',
+      phase1FitnessNoWall: '…',
+      phase1GolfWall: '…',
+      phase1GolfNoWall: '…',
+      phase2: '…',
+      fullProgram: '…',
+      isEllipsis: true,
+    },
+    dataRows[dataRows.length - 1]!,
+  ];
+}
+
+export { buildVideoRow };
+
+export const mockRotationScheduleRows: RotationScheduleRow[] = getPreviewRotationRows(
+  createInitialRotationSchedule(),
+);
 
 export const currentRotationDay = 15;
 
-export function getRotationRowForDay(day: number): RotationScheduleRow | undefined {
+export function getRotationRowForDay(
+  day: number,
+  rows?: RotationScheduleRow[],
+): RotationScheduleRow | undefined {
   if (day < 1 || day > ROTATION_DAYS) return undefined;
+  if (rows) {
+    return rows.find((row) => row.day === day);
+  }
   return buildVideoRow(day);
 }

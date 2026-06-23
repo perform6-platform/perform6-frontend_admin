@@ -1,6 +1,7 @@
 import { Menu } from 'lucide-react';
 import { PERFORM6_LOGO_URL } from '../../constants/branding';
-import { useMobileNav } from '../../context/MobileNavContext';import { cn } from '../../lib/cn';
+import { useMobileNav } from '../../context/MobileNavContext';
+import { cn } from '../../lib/cn';
 
 export default function MobileNavBar() {
   const { toggle } = useMobileNav();
@@ -30,7 +31,8 @@ export default function MobileNavBar() {
             alt="Perform6"
             className="h-8 w-auto max-w-[132px] object-contain object-left"
           />
-        </div>      </div>
+        </div>
+      </div>
     </header>
   );
 }
