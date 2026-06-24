@@ -1,6 +1,11 @@
-import { Download, Pencil } from 'lucide-react';
+import { Download } from 'lucide-react';
 import type { Device } from '../../constants/devices';
+import { useRotationSchedule } from '../../context/RotationScheduleContext';
 import { cn } from '../../lib/cn';
+import {
+  exportRotationScheduleCsv,
+  getDeviceScheduleExportFilename,
+} from '../../lib/exportRotationSchedule';
 import { BrightSignDeviceImage } from './BrightSignDeviceImage';
 import { Badge, Button, Card, CardTitle } from '../ui';
 
@@ -24,6 +29,8 @@ function DetailRow({ label, value }: DetailRowProps) {
 }
 
 export function DeviceDetailsPanel({ device, className }: DeviceDetailsPanelProps) {
+  const { getRowByDay } = useRotationSchedule();
+
   if (!device) {
     return (
       <Card className={cn('flex min-h-[320px] items-center justify-center p-5', className)}>
@@ -32,7 +39,9 @@ export function DeviceDetailsPanel({ device, className }: DeviceDetailsPanelProp
     );
   }
 
-  const detailLinks = ['Reboot Device', 'Force Sync', 'View Logs'] as const;
+  function handleExportSchedule() {
+    exportRotationScheduleCsv(getRowByDay, getDeviceScheduleExportFilename(device.name));
+  }
 
   return (
     <Card className={cn('p-5', className)}>
@@ -73,24 +82,8 @@ export function DeviceDetailsPanel({ device, className }: DeviceDetailsPanelProp
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-        {detailLinks.map((label) => (
-          <button
-            key={label}
-            type="button"
-            className="text-body-sm font-medium text-[#2563eb] transition-colors hover:text-[#1d4ed8] dark:text-[#60a5fa] dark:hover:text-[#93c5fd]"
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-        <Button size="sm" className="h-9 w-full gap-2">
-          <Pencil className="h-4 w-4" />
-          Edit Schedule
-        </Button>
-        <Button size="sm" className="h-9 w-full gap-2">
+      <div className="mt-4">
+        <Button type="button" size="sm" className="h-9 w-full gap-2" onClick={handleExportSchedule}>
           <Download className="h-4 w-4" />
           Export Schedule
         </Button>

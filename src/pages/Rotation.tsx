@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarDays, CheckCircle2, Save } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { CalendarDays, Save } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { RotationPhasePanel } from '../components/rotation/RotationPhasePanel';
 import { Button, PageTitle } from '../components/ui';
 import {
@@ -10,6 +10,7 @@ import {
 import type { ContentCategoryId } from '../constants/contentPlayback';
 import { useContent } from '../context/ContentContext';
 import { useRotationSchedule } from '../context/RotationScheduleContext';
+import { useToast } from '../context/ToastContext';
 import { cn } from '../lib/cn';
 import {
   buildVideoAssignmentsFromSchedule,
@@ -22,9 +23,9 @@ export default function Rotation() {
   const navigate = useNavigate();
   const { getVideosByCategory } = useContent();
   const { rows, applyRotationAssignments } = useRotationSchedule();
+  const { showToast } = useToast();
   const [activePhase, setActivePhase] = useState<PlaybackCategoryId>('default');
   const [assignments, setAssignments] = useState<Record<string, VideoAssignmentState>>({});
-  const [savedNotice, setSavedNotice] = useState(false);
 
   useEffect(() => {
     setAssignments(buildVideoAssignmentsFromSchedule(rows, getVideosByCategory));
@@ -52,7 +53,6 @@ export default function Rotation() {
 
         return updated;
       });
-      setSavedNotice(false);
     },
     [],
   );
@@ -68,7 +68,11 @@ export default function Rotation() {
     );
 
     applyRotationAssignments(videoAssignments);
-    setSavedNotice(true);
+    showToast({
+      title: 'Rotation saved',
+      message: 'Your video assignments have been saved to the rotation schedule.',
+      variant: 'success',
+    });
   }
 
   return (
@@ -102,22 +106,6 @@ export default function Rotation() {
           </Button>
         </div>
       </div>
-
-      {savedNotice && (
-        <div className="flex items-start gap-2 rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 dark:border-brand-600/30 dark:bg-brand-600/10">
-          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-status-success" />
-          <p className="text-body-sm text-content-primary">
-            Rotation saved.{' '}
-            <Link
-              to="/rotation-schedule"
-              className="font-medium text-brand-600 hover:underline dark:text-brand-400"
-            >
-              View the 36-day schedule
-            </Link>{' '}
-            to confirm assignments.
-          </p>
-        </div>
-      )}
 
       <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 hide-scrollbar sm:flex-wrap sm:overflow-visible sm:pb-0">
         {contentCategoryGroups.map((group) => (

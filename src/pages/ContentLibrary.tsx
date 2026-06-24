@@ -12,12 +12,15 @@ import {
 } from '../components/content-library/UploadContentModal';
 import { Button, Card, EmptyState, PageTitle } from '../components/ui';
 import type { ContentCategoryId, ContentItem, ContentTypeFilter } from '../constants/contentLibrary';
+import { getFullCategoryLabel } from '../constants/contentPlayback';
 import { useContent } from '../context/ContentContext';
+import { useToast } from '../context/ToastContext';
 
 export default function ContentLibrary() {
   const location = useLocation();
   const navigate = useNavigate();
   const { items, addItem } = useContent();
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<ContentTypeFilter>('videos');
   const [activeCategory, setActiveCategory] = useState<ContentCategoryId>('default-fitness');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -62,6 +65,11 @@ export default function ContentLibrary() {
     setActiveTab('videos');
     setSelectedId(newItem.id);
     setUploadOpen(false);
+    showToast({
+      title: 'Video uploaded',
+      message: `"${newItem.title}" has been added to ${getFullCategoryLabel(payload.categoryId)}.`,
+      variant: 'success',
+    });
   }
 
   return (

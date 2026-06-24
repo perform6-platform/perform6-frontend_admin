@@ -21,9 +21,11 @@ import {
   getDeviceRotationDay,
   getLatestDeploymentForDevice,
 } from '../lib/deviceSchedule';
+import { exportRotationScheduleCsv } from '../lib/exportRotationSchedule';
 
 export interface RotationScheduleLocationState {
   fromDeployment?: boolean;
+  deviceId?: string;
   rotationDay?: number;
   deploymentName?: string;
   contentSchedule?: string;
@@ -95,6 +97,14 @@ export default function RotationSchedule() {
 
   useEffect(() => {
     const state = location.state as RotationScheduleLocationState | null;
+    if (state?.deviceId) {
+      setSelectedDeviceId(state.deviceId);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.pathname, location.state, navigate]);
+
+  useEffect(() => {
+    const state = location.state as RotationScheduleLocationState | null;
     if (!state?.fromDeployment || !state.rotationDay) return;
 
     setDeploymentNotice(state);
@@ -117,54 +127,7 @@ export default function RotationSchedule() {
   }
 
   function handleExportSchedule() {
-    const headers = [
-      'Day',
-      'Date',
-      'Default Fitness',
-      'Default Golf',
-      'Start Here Fitness',
-      'Start Here Golf',
-      'Phase 1 Fitness Wall',
-      'Phase 1 Fitness No Wall',
-      'Phase 1 Golf Wall',
-      'Phase 1 Golf No Wall',
-      'Phase 2',
-      'Full Program',
-    ];
-
-    const allRows = Array.from({ length: ROTATION_DAYS }, (_, index) => getRowByDay(index + 1)).filter(
-      Boolean,
-    );
-
-    const csvLines = [
-      headers.join(','),
-      ...allRows.map((row) =>
-        [
-          row!.day,
-          row!.dateLabel,
-          row!.defaultFitness,
-          row!.defaultGolf,
-          row!.startHereFitness,
-          row!.startHereGolf,
-          row!.phase1FitnessWall,
-          row!.phase1FitnessNoWall,
-          row!.phase1GolfWall,
-          row!.phase1GolfNoWall,
-          row!.phase2,
-          row!.fullProgram,
-        ]
-          .map((value) => `"${String(value).replace(/"/g, '""')}"`)
-          .join(','),
-      ),
-    ];
-
-    const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'perform6-rotation-schedule.csv';
-    link.click();
-    URL.revokeObjectURL(url);
+    exportRotationScheduleCsv(getRowByDay);
   }
 
   return (
