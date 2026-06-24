@@ -1,13 +1,10 @@
 import {
-  CalendarDays,
-  MapPin,
   Monitor,
-  RefreshCw,
   Wifi,
   WifiOff,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { DonutChart, BarChart } from '../components/dashboard/Charts';
+import { DonutChart } from '../components/dashboard/Charts';
 import { UpcomingRotationCard } from '../components/dashboard/UpcomingRotation';
 import { quickActions } from '../constants/navigation';
 import { cn } from '../lib/cn';
@@ -29,15 +26,6 @@ const deviceStatusSegments = [
   { label: 'Error', value: 0, color: '#EA5455' },
 ];
 
-const locationData = [
-  { label: 'New York Gym', value: 12 },
-  { label: 'Chicago Gym', value: 9 },
-  { label: 'Dallas Gym', value: 8 },
-  { label: 'Los Angeles Gym', value: 7 },
-  { label: 'Miami Gym', value: 7 },
-  { label: 'Boston Gym', value: 5 },
-];
-
 const recentActivity = [
   { device: 'BrightSign-001', action: 'Content Updated', time: '1 min ago', status: 'success' as const },
   { device: 'BrightSign-014', action: 'Device Online', time: '3 min ago', status: 'success' as const },
@@ -55,7 +43,7 @@ export default function Dashboard() {
       return;
     }
     if (label === 'Create New Schedule') {
-      navigate('/rotation-schedule');
+      navigate('/rotation');
       return;
     }
     if (label === 'Deploy to Devices') {
@@ -65,63 +53,42 @@ export default function Dashboard() {
 
   return (
     <PageShell title="Dashboard">
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         <MetricCard
           label="Total Devices"
           value="45"
-          subtext="All BrightSign Devices"
+          subtext="All BrightSign devices"
+          trend="8%"
+          trendDirection="up"
           icon={<Monitor className="h-5 w-5" />}
         />
         <MetricCard
           label="Online Devices"
           value="42"
-          subtext="93% Online"
+          subtext="93% online"
+          trend="12%"
+          trendDirection="up"
           accent="success"
           icon={<Wifi className="h-5 w-5" />}
         />
         <MetricCard
           label="Offline Devices"
           value="3"
-          subtext="7% Offline"
+          subtext="7% offline"
+          trend="4%"
+          trendDirection="down"
           accent="warning"
           icon={<WifiOff className="h-5 w-5" />}
         />
-        <MetricCard
-          label="Active Locations"
-          value="12"
-          subtext="All Locations"
-          icon={<MapPin className="h-5 w-5" />}
-        />
-        <MetricCard
-          label="Today's Schedule"
-          value="DAY 14"
-          subtext="4-Day Rotation"
-          icon={<CalendarDays className="h-5 w-5" />}
-        />
-        <MetricCard
-          label="Last Sync"
-          value="2 min ago"
-          subtext="All Devices"
-          icon={<RefreshCw className="h-5 w-5" />}
-        />
       </section>
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Device Status</CardTitle>
           </CardHeader>
           <CardContent>
             <DonutChart segments={deviceStatusSegments} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Devices By Location</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <BarChart items={locationData} />
           </CardContent>
         </Card>
 

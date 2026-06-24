@@ -57,16 +57,16 @@ export function PlaybackOverview() {
           <table className="w-full min-w-[640px] border-collapse text-left text-body-sm lg:min-w-[720px]">
             <thead>
               <tr className="border-b border-surface-border">
-                <th className="px-3 py-2.5 text-section-label font-semibold uppercase text-content-muted">
+                <th className="px-3 py-2.5 text-table-header font-semibold uppercase text-content-muted">
                   Category
                 </th>
-                <th className="px-3 py-2.5 text-section-label font-semibold uppercase text-content-muted">
+                <th className="px-3 py-2.5 text-table-header font-semibold uppercase text-content-muted">
                   Options
                 </th>
-                <th className="px-3 py-2.5 text-section-label font-semibold uppercase text-content-muted">
+                <th className="px-3 py-2.5 text-table-header font-semibold uppercase text-content-muted">
                   Playback
                 </th>
-                <th className="px-3 py-2.5 text-section-label font-semibold uppercase text-content-muted">
+                <th className="px-3 py-2.5 text-table-header font-semibold uppercase text-content-muted">
                   Duration
                 </th>
               </tr>

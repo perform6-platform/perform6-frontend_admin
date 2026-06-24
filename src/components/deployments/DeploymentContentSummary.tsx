@@ -2,11 +2,14 @@ import type { ContentItem } from '../../constants/contentLibrary';
 import { formatProgramTypeLabel, formatVideosDuration } from '../../lib/deploymentHelpers';
 import { cn } from '../../lib/cn';
 import { CARD_SURFACE_CLASS, SectionLabel } from '../ui';
+import { VideoThumbnailWithBranding } from './VideoThumbnailWithBranding';
 
 export interface DeploymentContentSummaryProps {
   programTypeLabel: string;
   contentLabel: string;
   videos: ContentItem[];
+  brandingLogoUrl?: string | null;
+  companyName?: string;
   className?: string;
 }
 
@@ -14,6 +17,8 @@ export function DeploymentContentSummary({
   programTypeLabel,
   contentLabel,
   videos,
+  brandingLogoUrl,
+  companyName,
   className,
 }: DeploymentContentSummaryProps) {
   const videoLabel = videos.length === 1 ? '1 Video' : `${videos.length} Videos`;
@@ -31,9 +36,16 @@ export function DeploymentContentSummary({
       </dl>
 
       {thumbnailUrl && (
-        <div className="mt-4 overflow-hidden rounded-lg border border-surface-border">
-          <img src={thumbnailUrl} alt="" className="aspect-video w-full object-cover" />
-        </div>
+        <VideoThumbnailWithBranding
+          thumbnailUrl={thumbnailUrl}
+          brandingLogoUrl={brandingLogoUrl}
+          companyName={companyName}
+          className="mt-4 overflow-hidden rounded-lg border border-surface-border"
+          imageClassName="aspect-video w-full"
+          logoClassName="h-5 w-5 sm:h-6 sm:w-6"
+          nameClassName="text-[10px] sm:text-xs"
+          overlayClassName="left-2 top-2 gap-1.5 px-1.5 py-1"
+        />
       )}
     </aside>
   );

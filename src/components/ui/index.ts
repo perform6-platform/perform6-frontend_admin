@@ -43,3 +43,5 @@ export { Modal, ModalBody, ModalFooter } from './Modal';
 export type { ModalProps, ModalBodyProps, ModalFooterProps } from './Modal';
 export { ConfirmModal } from './ConfirmModal';
 export type { ConfirmModalProps } from './ConfirmModal';
+export { useToast } from '../../context/ToastContext';
+export type { ShowToastOptions, ToastVariant } from '../../context/ToastContext';

@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, X } from 'lucide-react';
 import { cn } from '../../lib/cn';
 
 export interface DropdownOption<T extends string = string> {
@@ -16,6 +16,7 @@ export interface DropdownProps<T extends string = string> {
   className?: string;
   disabled?: boolean;
   fullWidth?: boolean;
+  clearable?: boolean;
 }
 
 interface MenuPosition {
@@ -64,6 +65,7 @@ export function Dropdown<T extends string = string>({
   className,
   disabled = false,
   fullWidth = false,
+  clearable = false,
 }: DropdownProps<T>) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -171,10 +173,37 @@ export function Dropdown<T extends string = string>({
             disabled && 'cursor-not-allowed opacity-50',
           )}
         >
-          <span className="truncate">{selected?.label ?? placeholder}</span>
-          <ChevronDown
-            className={cn('h-4 w-4 shrink-0 text-content-muted transition-transform', open && 'rotate-180')}
-          />
+          <span className={cn('truncate', !selected && 'text-content-muted')}>
+            {selected?.label ?? placeholder}
+          </span>
+          <span className="flex shrink-0 items-center gap-1">
+            {clearable && value && !disabled && (
+              <span
+                role="button"
+                tabIndex={0}
+                aria-label="Clear selection"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onChange('' as T);
+                  setOpen(false);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onChange('' as T);
+                    setOpen(false);
+                  }
+                }}
+                className="rounded p-0.5 text-content-muted transition-colors hover:bg-surface-muted hover:text-content-primary"
+              >
+                <X className="h-3.5 w-3.5" />
+              </span>
+            )}
+            <ChevronDown
+              className={cn('h-4 w-4 text-content-muted transition-transform', open && 'rotate-180')}
+            />
+          </span>
         </button>
       </div>
       {menu}

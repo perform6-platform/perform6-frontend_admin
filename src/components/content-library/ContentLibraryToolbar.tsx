@@ -1,10 +1,5 @@
 import type { ContentTypeFilter } from '../../constants/contentLibrary';
-import {
-  contentCategoryFilterOptions,
-  contentSortOptions,
-  contentTypeFilterOptions,
-  contentTypeTabs,
-} from '../../constants/contentLibrary';
+import { contentCategoryFilterOptions, contentTypeTabs } from '../../constants/contentLibrary';
 import { cn } from '../../lib/cn';
 import { Dropdown } from '../ui';
 
@@ -13,10 +8,6 @@ export interface ContentLibraryToolbarProps {
   onTabChange: (tab: ContentTypeFilter) => void;
   categoryFilter: string;
   onCategoryFilterChange: (value: string) => void;
-  typeFilter: string;
-  onTypeFilterChange: (value: string) => void;
-  sortBy: string;
-  onSortChange: (value: string) => void;
 }
 
 export function ContentLibraryToolbar({
@@ -24,10 +15,6 @@ export function ContentLibraryToolbar({
   onTabChange,
   categoryFilter,
   onCategoryFilterChange,
-  typeFilter,
-  onTypeFilterChange,
-  sortBy,
-  onSortChange,
 }: ContentLibraryToolbarProps) {
   return (
     <div className="flex flex-col gap-3 border-b border-surface-border pb-4 xl:flex-row xl:items-center xl:justify-between">
@@ -60,21 +47,6 @@ export function ContentLibraryToolbar({
           onChange={onCategoryFilterChange}
           fullWidth
           className="w-full lg:w-auto"
-        />
-        <Dropdown
-          options={contentTypeFilterOptions}
-          value={typeFilter}
-          onChange={onTypeFilterChange}
-          fullWidth
-          className="w-full lg:w-auto"
-        />
-        <Dropdown
-          options={contentSortOptions}
-          value={sortBy}
-          onChange={onSortChange}
-          placeholder="Sort"
-          fullWidth
-          className="w-full sm:col-span-2 lg:col-span-1 lg:w-auto [&_button]:w-full lg:[&_button]:w-auto"
         />
       </div>
     </div>

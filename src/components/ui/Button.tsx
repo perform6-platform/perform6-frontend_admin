@@ -60,15 +60,17 @@ export function QuickActionButton({ icon, label, className, ...props }: QuickAct
     <button
       type="button"
       className={cn(
-        'flex flex-1 items-center justify-center gap-2 rounded-card border border-surface-border',
-        'bg-surface px-4 py-3 text-body-sm font-medium text-brand-600 shadow-card transition-colors',
-        'hover:border-brand-500/40 hover:bg-brand-50/50 dark:text-brand-400 dark:hover:bg-brand-600/10',
+        'flex flex-1 items-center justify-center gap-2 rounded-card border border-transparent',
+        'bg-surface px-4 py-3 text-body-sm font-medium text-content-primary shadow-card transition-all',
+        'hover:-translate-y-0.5 hover:shadow-[0_8px_28px_rgba(15,23,42,0.08)]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40',
         className,
       )}
       {...props}
     >
-      <span className="text-brand-600 dark:text-brand-400">{icon}</span>
+      <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand-50 text-brand-600">
+        {icon}
+      </span>
       {label}
     </button>
   );

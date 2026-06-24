@@ -1,4 +1,5 @@
 import { buildRotationVideoName, ROTATION_DAYS } from './contentPlayback';
+import type { ContentCategoryId } from './contentPlayback';
 
 export type RotationViewFilter = 'all' | 'fitness' | 'golf' | 'rotation';
 
@@ -70,17 +71,34 @@ export const rotationColumnGroups = [
 
 export const rotationFlatColumns = rotationColumnGroups.flatMap((group) => group.columns);
 
-function formatScheduleDate(dayOffset: number): string {
-  const date = new Date(2025, 3, 14 + (dayOffset - 14));
-  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+function formatScheduleDate(day: number): { dayLabel: string; dateLabel: string } {
+  const date = new Date(2025, 3, 14 + (day - 14));
+  const weekday = date.toLocaleDateString('en-US', { weekday: 'short' }).replace(/\.$/, '');
+  return {
+    dayLabel: weekday,
+    dateLabel: date
+      .toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+      .replace(' ', '-'),
+  };
+}
+
+export function getRotationScheduleCellValue(
+  row: RotationScheduleRow,
+  columnKey: string,
+): string {
+  if (columnKey === 'day') return row.dayLabel;
+  if (columnKey === 'date') return row.dateLabel;
+  const value = row[columnKey as keyof RotationScheduleRow];
+  return value === undefined || value === null ? '' : String(value);
 }
 
 function buildVideoRow(day: number): RotationScheduleRow {
+  const { dayLabel, dateLabel } = formatScheduleDate(day);
   return {
     id: `day-${day}`,
     day,
-    dayLabel: `Day ${day}`,
-    dateLabel: day === 36 ? '12 May 2025' : formatScheduleDate(day),
+    dayLabel,
+    dateLabel,
     defaultFitness: buildRotationVideoName(day, 'defaultFitness'),
     defaultGolf: buildRotationVideoName(day, 'defaultGolf'),
     startHereFitness: buildRotationVideoName(day, 'startHereFitness'),
@@ -107,12 +125,11 @@ export const rotationEditableColumns: {
   key: RotationScheduleColumnKey;
   label: string;
   group: string;
-  readOnly?: boolean;
 }[] = [
-  { key: 'defaultFitness', label: 'Fitness', group: 'Default', readOnly: true },
-  { key: 'defaultGolf', label: 'Golf', group: 'Default', readOnly: true },
-  { key: 'startHereFitness', label: 'Fitness', group: 'Start Here', readOnly: true },
-  { key: 'startHereGolf', label: 'Golf', group: 'Start Here', readOnly: true },
+  { key: 'defaultFitness', label: 'Fitness', group: 'Default' },
+  { key: 'defaultGolf', label: 'Golf', group: 'Default' },
+  { key: 'startHereFitness', label: 'Fitness', group: 'Start Here' },
+  { key: 'startHereGolf', label: 'Golf', group: 'Start Here' },
   { key: 'phase1FitnessWall', label: 'Fitness (Wall)', group: 'Phase 1' },
   { key: 'phase1FitnessNoWall', label: 'Fitness (No Wall)', group: 'Phase 1' },
   { key: 'phase1GolfWall', label: 'Golf (Wall)', group: 'Phase 1' },
@@ -121,14 +138,24 @@ export const rotationEditableColumns: {
   { key: 'fullProgram', label: 'All Deployments', group: 'Full Program' },
 ];
 
-export function getPreviewRotationRows(allRows: RotationScheduleRow[]): RotationScheduleRow[] {
-  const previewDays = [14, 15, 16, 17, 18, 36];
+export function getPreviewRotationRows(
+  allRows: RotationScheduleRow[],
+  extraDays: number[] = [],
+): RotationScheduleRow[] {
+  const previewDays = [...new Set([14, 15, 16, 17, 18, 36, ...extraDays])].sort((a, b) => a - b);
   const dataRows = previewDays
     .map((day) => allRows.find((row) => row.day === day))
     .filter((row): row is RotationScheduleRow => row !== undefined);
 
+  if (dataRows.length <= 6) {
+    return dataRows;
+  }
+
+  const firstChunk = dataRows.slice(0, 5);
+  const lastRow = dataRows[dataRows.length - 1]!;
+
   return [
-    ...dataRows.slice(0, 5),
+    ...firstChunk,
     {
       id: 'ellipsis',
       day: 0,
@@ -146,7 +173,7 @@ export function getPreviewRotationRows(allRows: RotationScheduleRow[]): Rotation
       fullProgram: '…',
       isEllipsis: true,
     },
-    dataRows[dataRows.length - 1]!,
+    lastRow,
   ];
 }
 
@@ -157,6 +184,37 @@ export const mockRotationScheduleRows: RotationScheduleRow[] = getPreviewRotatio
 );
 
 export const currentRotationDay = 15;
+
+export function getScheduleColumnForCategory(
+  categoryId: ContentCategoryId,
+): RotationScheduleColumnKey {
+  const columnMap: Record<ContentCategoryId, RotationScheduleColumnKey> = {
+    'default-fitness': 'defaultFitness',
+    'default-golf': 'defaultGolf',
+    'start-here-fitness': 'startHereFitness',
+    'start-here-golf': 'startHereGolf',
+    'phase-1-fitness-wall': 'phase1FitnessWall',
+    'phase-1-fitness-no-wall': 'phase1FitnessNoWall',
+    'phase-1-golf-wall': 'phase1GolfWall',
+    'phase-1-golf-no-wall': 'phase1GolfNoWall',
+    'phase-2': 'phase2',
+    'full-program': 'fullProgram',
+  };
+
+  return columnMap[categoryId];
+}
+
+export function toScheduleVideoName(title: string): string {
+  return title.replace(/\.mp4$/i, '').trim();
+}
+
+export function getViewFilterForCategory(categoryId: ContentCategoryId): RotationViewFilter {
+  return categoryId.includes('golf') ? 'golf' : 'fitness';
+}
+
+export function getDeploymentTableColumnKeys(categoryId: ContentCategoryId): string[] {
+  return ['day', 'date', getScheduleColumnForCategory(categoryId)];
+}
 
 export function getRotationRowForDay(
   day: number,

@@ -2,7 +2,7 @@ import type { ContentCategoryId } from './contentPlayback';
 
 export type { ContentCategoryId };
 
-export type ContentTypeFilter = 'all' | 'videos' | 'images' | 'documents';
+export type ContentTypeFilter = 'all' | 'videos';
 
 export type ContentMediaType = 'video' | 'image' | 'document';
 
@@ -33,8 +33,6 @@ export function getContentVideoUrl(item: ContentItem): string | null {
 export const contentTypeTabs: { value: ContentTypeFilter; label: string }[] = [
   { value: 'all', label: 'All Content' },
   { value: 'videos', label: 'Videos' },
-  { value: 'images', label: 'Images' },
-  { value: 'documents', label: 'Documents' },
 ];
 
 import { allContentCategories } from './contentPlayback';
@@ -49,8 +47,6 @@ export const contentCategoryFilterOptions = [
 export const contentTypeFilterOptions = [
   { value: 'all', label: 'All Types' },
   { value: 'video', label: 'Video' },
-  { value: 'image', label: 'Image' },
-  { value: 'document', label: 'Document' },
 ];
 
 export const contentSortOptions = [

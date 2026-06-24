@@ -21,8 +21,6 @@ export default function ContentLibrary() {
   const [activeTab, setActiveTab] = useState<ContentTypeFilter>('videos');
   const [activeCategory, setActiveCategory] = useState<ContentCategoryId>('default-fitness');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('newest');
   const [selectedId, setSelectedId] = useState<string>('content-default-fitness');
   const [uploadOpen, setUploadOpen] = useState(false);
   const [playingItem, setPlayingItem] = useState<ContentItem | null>(null);
@@ -46,8 +44,6 @@ export default function ContentLibrary() {
     if (activeTab !== 'all') {
       const typeMap: Record<Exclude<ContentTypeFilter, 'all'>, string> = {
         videos: 'video',
-        images: 'image',
-        documents: 'document',
       };
       result = result.filter((item) => item.mediaType === typeMap[activeTab]);
     }
@@ -56,18 +52,8 @@ export default function ContentLibrary() {
       result = result.filter((item) => item.categoryId === categoryFilter);
     }
 
-    if (typeFilter !== 'all') {
-      result = result.filter((item) => item.mediaType === typeFilter);
-    }
-
-    if (sortBy === 'name-asc') {
-      result = [...result].sort((a, b) => a.title.localeCompare(b.title));
-    } else if (sortBy === 'name-desc') {
-      result = [...result].sort((a, b) => b.title.localeCompare(a.title));
-    }
-
     return result;
-  }, [items, activeTab, activeCategory, categoryFilter, typeFilter, sortBy]);
+  }, [items, activeTab, activeCategory, categoryFilter]);
 
   async function handleUpload(payload: UploadContentPayload) {
     const newItem = await buildContentItemFromUpload(payload, `content-${Date.now()}`);
@@ -75,6 +61,7 @@ export default function ContentLibrary() {
     setActiveCategory(payload.categoryId);
     setActiveTab('videos');
     setSelectedId(newItem.id);
+    setUploadOpen(false);
   }
 
   return (
@@ -99,10 +86,6 @@ export default function ContentLibrary() {
               onTabChange={setActiveTab}
               categoryFilter={categoryFilter}
               onCategoryFilterChange={setCategoryFilter}
-              typeFilter={typeFilter}
-              onTypeFilterChange={setTypeFilter}
-              sortBy={sortBy}
-              onSortChange={setSortBy}
             />
           </div>
 
@@ -113,7 +96,7 @@ export default function ContentLibrary() {
 
             <div className="min-w-0 flex-1">
               {filteredItems.length === 0 ? (
-                <EmptyState message="No content found for the selected filters." />
+                <EmptyState message="No content found for the selected category." />
               ) : (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                   {filteredItems.map((item) => (

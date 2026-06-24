@@ -9,7 +9,7 @@ export default function MobileNavBar() {
   return (
     <header
       className={cn(
-        'relative z-30 shrink-0 border-b border-surface-border bg-page lg:hidden',
+        'relative z-30 shrink-0 border-b border-surface-border bg-surface lg:hidden',
       )}
     >
       <div className="flex items-center gap-3 px-4 py-3">

@@ -1,4 +1,5 @@
 import { cn } from '../../lib/cn';
+import { deploymentSteps } from '../../lib/deploymentHelpers';
 
 export interface DeploymentStepperProps {
   currentStep: number;
@@ -6,16 +7,9 @@ export interface DeploymentStepperProps {
 }
 
 export function DeploymentStepper({ currentStep, className }: DeploymentStepperProps) {
-  const steps = [
-    { id: 1, label: 'Select Content' },
-    { id: 2, label: 'Select Devices' },
-    { id: 3, label: 'Deployment Settings' },
-    { id: 4, label: 'Review & Deploy' },
-  ];
-
   return (
     <ol className={cn('flex flex-wrap items-center gap-2 sm:gap-3', className)}>
-      {steps.map((step, index) => {
+      {deploymentSteps.map((step, index) => {
         const isActive = step.id === currentStep;
         const isComplete = step.id < currentStep;
 
@@ -41,7 +35,7 @@ export function DeploymentStepper({ currentStep, className }: DeploymentStepperP
                 {step.label}
               </span>
             </div>
-            {index < steps.length - 1 && (
+            {index < deploymentSteps.length - 1 && (
               <span className="hidden h-px w-6 bg-surface-border sm:block lg:w-10" aria-hidden="true" />
             )}
           </li>

@@ -35,6 +35,7 @@ export default {
       fontSize: {
         'page-title': ['1.5rem', { lineHeight: '2rem', fontWeight: '700', letterSpacing: '0.02em' }],
         'section-label': ['0.6875rem', { lineHeight: '1rem', fontWeight: '600', letterSpacing: '0.06em' }],
+        'table-header': ['13px', { lineHeight: '1.125rem', fontWeight: '600', letterSpacing: '0.04em' }],
         'metric-value': ['1.75rem', { lineHeight: '2.25rem', fontWeight: '700' }],
         'metric-label': ['0.6875rem', { lineHeight: '1rem', fontWeight: '500' }],
         'body-sm': ['0.8125rem', { lineHeight: '1.25rem' }],
@@ -44,7 +45,7 @@ export default {
         card: 'var(--color-card-shadow)',
       },
       borderRadius: {
-        card: '12px',
+        card: '16px',
       },
     },
   },

@@ -64,7 +64,7 @@ export function Table<T>({
                       <th
                         key={column.key}
                         className={cn(
-                          'whitespace-nowrap px-4 py-3 text-section-label uppercase text-content-secondary',
+                          'whitespace-nowrap px-4 py-3 text-table-header uppercase text-content-secondary',
                           column.hideOnMobile && 'hidden md:table-cell',
                           column.headerClassName,
                         )}

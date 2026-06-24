@@ -1,22 +1,19 @@
 import { useState, type FormEvent } from 'react';
-import { Button, Dropdown, Input, Modal, ModalBody } from '../ui';
-import { locationOptions, assignableLocations } from '../../constants/devices';
+import { Button, Input, Modal, ModalBody } from '../ui';
 
 export interface AddDeviceModalProps {
   open: boolean;
   onClose: () => void;
-  onSubmit?: (payload: { deviceName: string; pairingCode: string; location: string }) => void;
+  onSubmit?: (payload: { deviceName: string; pairingCode: string }) => void;
 }
 
 export function AddDeviceModal({ open, onClose, onSubmit }: AddDeviceModalProps) {
   const [deviceName, setDeviceName] = useState('');
   const [pairingCode, setPairingCode] = useState('');
-  const [location, setLocation] = useState(assignableLocations[0]?.value ?? 'new-york');
 
   function handleClose() {
     setDeviceName('');
     setPairingCode('');
-    setLocation(assignableLocations[0]?.value ?? 'new-york');
     onClose();
   }
 
@@ -25,7 +22,6 @@ export function AddDeviceModal({ open, onClose, onSubmit }: AddDeviceModalProps)
     onSubmit?.({
       deviceName: deviceName.trim(),
       pairingCode: pairingCode.trim(),
-      location,
     });
     handleClose();
   }
@@ -64,15 +60,6 @@ export function AddDeviceModal({ open, onClose, onSubmit }: AddDeviceModalProps)
             maxLength={6}
             required
           />
-          <div>
-            <label className="mb-1 block text-xs font-medium text-content-muted">Location</label>
-            <Dropdown
-              options={[...assignableLocations]}
-              value={location}
-              onChange={setLocation}
-              fullWidth
-            />
-          </div>
         </form>
       </ModalBody>
     </Modal>

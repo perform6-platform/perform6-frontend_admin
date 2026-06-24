@@ -35,7 +35,7 @@ export function CardHeader({ className, children, ...props }: HTMLAttributes<HTM
 export function CardTitle({ className, children, ...props }: HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h3
-      className={cn('text-section-label uppercase text-content-secondary', className)}
+      className={cn('text-base font-semibold text-content-primary', className)}
       {...props}
     >
       {children}
@@ -90,7 +90,7 @@ export function PageShell({ title, children }: PageShellProps) {
 export function PageTitle({ className, children, ...props }: HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h1
-      className={cn('shrink-0 text-xl font-bold uppercase text-content-primary sm:text-page-title', className)}
+      className={cn('shrink-0 text-xl font-bold tracking-tight text-content-primary sm:text-2xl', className)}
       {...props}
     >
       {children}
