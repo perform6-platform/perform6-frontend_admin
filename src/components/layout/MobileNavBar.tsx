@@ -1,7 +1,12 @@
 import { Menu } from 'lucide-react';
-import { PERFORM6_LOGO_URL } from '../../constants/branding';
 import { useMobileNav } from '../../context/MobileNavContext';
 import { cn } from '../../lib/cn';
+import { ThemeToggle, UserMenu } from '../ui';
+
+const HEADER_USER = {
+  name: 'Admin User',
+  role: 'Super Admin',
+} as const;
 
 export default function MobileNavBar() {
   const { toggle } = useMobileNav();
@@ -9,10 +14,10 @@ export default function MobileNavBar() {
   return (
     <header
       className={cn(
-        'relative z-30 shrink-0 border-b border-surface-border bg-surface lg:hidden',
+        'sticky top-0 z-30 shrink-0 border-b border-surface-border bg-surface lg:hidden',
       )}
     >
-      <div className="flex items-center gap-3 px-4 py-3">
+      <div className="flex items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
         <button
           type="button"
           onClick={toggle}
@@ -25,12 +30,17 @@ export default function MobileNavBar() {
         >
           <Menu className="h-5 w-5" />
         </button>
+
         <div className="min-w-0 flex-1">
-          <img
-            src={PERFORM6_LOGO_URL}
-            alt="Perform6"
-            className="h-8 w-auto max-w-[132px] object-contain object-left"
-          />
+          <p className="truncate text-caption font-medium leading-tight text-content-muted">Welcome back</p>
+          <p className="truncate text-sm font-bold leading-tight text-content-primary sm:text-base">
+            Admin Panel
+          </p>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+          <ThemeToggle />
+          <UserMenu name={HEADER_USER.name} role={HEADER_USER.role} />
         </div>
       </div>
     </header>

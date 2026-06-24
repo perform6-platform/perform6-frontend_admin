@@ -205,25 +205,29 @@ export default function Devices() {
 
   return (
     <PageShell title="Devices">
-      <div className="relative z-20 flex w-full flex-nowrap items-center gap-3">
-        <Dropdown
-          options={[...locationOptions]}
-          value={locationFilter}
-          onChange={(value) => {
-            setLocationFilter(value);
-            setPage(1);
-          }}
-          className="shrink-0"
-        />
-        <Dropdown
-          options={[...statusOptions]}
-          value={statusFilter}
-          onChange={(value) => {
-            setStatusFilter(value);
-            setPage(1);
-          }}
-          className="shrink-0"
-        />
+      <div className="relative z-20 flex flex-col gap-3 xl:flex-row xl:items-center">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:flex xl:shrink-0 xl:gap-3">
+          <Dropdown
+            options={[...locationOptions]}
+            value={locationFilter}
+            onChange={(value) => {
+              setLocationFilter(value);
+              setPage(1);
+            }}
+            fullWidth
+            className="min-w-0"
+          />
+          <Dropdown
+            options={[...statusOptions]}
+            value={statusFilter}
+            onChange={(value) => {
+              setStatusFilter(value);
+              setPage(1);
+            }}
+            fullWidth
+            className="min-w-0"
+          />
+        </div>
         <Input
           icon={<Search className="h-4 w-4" />}
           placeholder="Search devices..."
@@ -233,11 +237,11 @@ export default function Devices() {
             setPage(1);
           }}
           aria-label="Search devices"
-          className="min-w-0 flex-1"
+          className="min-w-0 w-full xl:flex-1"
         />
         <Button
           size="sm"
-          className="ml-auto h-9 shrink-0 whitespace-nowrap px-4"
+          className="h-9 w-full shrink-0 whitespace-nowrap px-4 xl:ml-auto xl:w-auto"
           onClick={() => setAddDeviceOpen(true)}
         >
           Add device

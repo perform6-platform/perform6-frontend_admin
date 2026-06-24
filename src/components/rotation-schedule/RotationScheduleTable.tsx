@@ -6,7 +6,7 @@ import {
   rotationFlatColumns,
 } from '../../constants/rotationSchedule';
 import { cn } from '../../lib/cn';
-import { Button, IconButton } from '../ui';
+import { IconButton } from '../ui';
 import { CARD_SURFACE_CLASS } from '../ui/cardStyles';
 
 const SCHEDULE_FOOTER_NOTE =
@@ -67,103 +67,6 @@ function isColumnVisible(key: string, viewFilter: RotationScheduleTableProps['vi
     return !['phase1FitnessWall', 'phase1FitnessNoWall', 'defaultFitness', 'startHereFitness'].includes(key);
   }
   return true;
-}
-
-function getColumnMeta(key: string) {
-  for (const group of rotationColumnGroups) {
-    const column = group.columns.find((entry) => entry.key === key);
-    if (column) {
-      return { label: column.label, group: group.label || undefined };
-    }
-  }
-  return { label: key, group: undefined };
-}
-
-function RotationScheduleMobileCard({
-  row,
-  visibleColumns,
-  isEditing,
-  onEditDay,
-  highlightCell,
-  highlightDay,
-  showViewActions,
-  onViewRow,
-}: {
-  row: RotationScheduleRow;
-  visibleColumns: typeof rotationFlatColumns;
-  isEditing?: boolean;
-  onEditDay?: (day: number) => void;
-  highlightCell?: RotationScheduleTableProps['highlightCell'];
-  highlightDay?: number;
-  showViewActions?: boolean;
-  onViewRow?: (row: RotationScheduleRow) => void;
-}) {
-  if (row.isEllipsis) {
-    return (
-      <div className="rounded-lg border border-dashed border-surface-border bg-surface-muted/30 px-4 py-3 text-center text-body-sm text-content-muted">
-        … more days in schedule …
-      </div>
-    );
-  }
-
-  const isHighlightedRow = highlightDay === row.day || highlightCell?.day === row.day;
-
-  return (
-    <article
-      className={cn(
-        'rounded-lg border bg-surface p-4',
-        isHighlightedRow ? 'border-brand-400 ring-1 ring-brand-400/40' : 'border-surface-border',
-      )}
-    >
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div>
-          <p className="font-semibold text-content-primary">{row.dayLabel}</p>
-          <p className="text-caption text-content-muted">{row.dateLabel}</p>
-        </div>
-        {isEditing && onEditDay && (
-          <Button size="sm" variant="outline" className="h-8 shrink-0 gap-1.5 px-3" onClick={() => onEditDay(row.day)}>
-            <Pencil className="h-3.5 w-3.5" />
-            Edit
-          </Button>
-        )}
-        {showViewActions && onViewRow && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 shrink-0 gap-1.5 px-3"
-            onClick={() => onViewRow(row)}
-          >
-            <Eye className="h-3.5 w-3.5" />
-            View
-          </Button>
-        )}
-      </div>
-      <dl className="space-y-2">
-        {visibleColumns
-          .filter((column) => !['day', 'date'].includes(column.key))
-          .map((column) => {
-            const meta = getColumnMeta(column.key);
-            const isHighlightedCell =
-              highlightCell?.day === row.day && highlightCell.column === column.key;
-            return (
-              <div key={column.key} className="grid grid-cols-1 gap-0.5 sm:grid-cols-[minmax(0,9rem)_1fr] sm:gap-3">
-                <dt className="text-caption font-medium text-content-muted">
-                  {meta.group ? `${meta.group} · ${meta.label}` : meta.label}
-                </dt>
-                <dd
-                  className={cn(
-                    'break-all text-body-sm text-content-primary',
-                    isHighlightedCell && 'font-semibold text-brand-700 dark:text-brand-300',
-                  )}
-                >
-                  {row[column.key as ColumnKey] as string}
-                </dd>
-              </div>
-            );
-          })}
-      </dl>
-    </article>
-  );
 }
 
 function RotationScheduleTableHeader({
@@ -338,28 +241,11 @@ export function RotationScheduleTable({
         </div>
       )}
 
-      <div className="space-y-3 p-4 lg:hidden">
-        {rows.map((row) => (
-          <RotationScheduleMobileCard
-            key={row.id}
-            row={row}
-            visibleColumns={visibleColumns}
-            isEditing={isEditing}
-            onEditDay={onEditDay}
-            highlightCell={highlightCell}
-            highlightDay={highlightDay}
-            showViewActions={showViewActions}
-            onViewRow={onViewRow}
-          />
-        ))}
-      </div>
-
-      <div className="hidden lg:block">
-        <p className="scroll-hint px-4 pt-3 text-caption text-content-muted xl:hidden">
-          Swipe horizontally to view all columns →
-        </p>
-        <div className="table-scroll-x overflow-x-auto">
-          <table className="rotation-schedule-table w-full min-w-[960px] border-collapse text-left xl:min-w-[1200px]">
+      <p className="scroll-hint px-4 pt-3 text-caption text-content-muted">
+        Swipe horizontally to view all columns →
+      </p>
+      <div className="table-scroll-x w-full max-w-full overflow-x-auto overscroll-x-contain">
+        <table className="rotation-schedule-table w-full min-w-[960px] border-collapse text-left xl:min-w-[1200px]">
             <RotationScheduleTableHeader
               showActions={showActions}
               showViewActions={showViewActions}
@@ -445,7 +331,6 @@ export function RotationScheduleTable({
               </tr>
             </tfoot>
           </table>
-        </div>
       </div>
     </div>
   );
