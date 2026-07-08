@@ -1,4 +1,4 @@
-import { buildRotationVideoName, ROTATION_DAYS } from './contentPlayback';
+import { ROTATION_DAYS } from './contentPlayback';
 import type { ContentCategoryId } from './contentPlayback';
 
 export type RotationViewFilter = 'all' | 'fitness' | 'golf' | 'rotation';
@@ -72,7 +72,9 @@ export const rotationColumnGroups = [
 export const rotationFlatColumns = rotationColumnGroups.flatMap((group) => group.columns);
 
 function formatScheduleDate(day: number): { dayLabel: string; dateLabel: string } {
-  const date = new Date(2025, 3, 14 + (day - 14));
+  const epoch = new Date(2025, 0, 1);
+  const date = new Date(epoch);
+  date.setDate(epoch.getDate() + (day - 1));
   const weekday = date.toLocaleDateString('en-US', { weekday: 'short' }).replace(/\.$/, '');
   return {
     dayLabel: weekday,
@@ -99,16 +101,16 @@ function buildVideoRow(day: number): RotationScheduleRow {
     day,
     dayLabel,
     dateLabel,
-    defaultFitness: buildRotationVideoName(day, 'defaultFitness'),
-    defaultGolf: buildRotationVideoName(day, 'defaultGolf'),
-    startHereFitness: buildRotationVideoName(day, 'startHereFitness'),
-    startHereGolf: buildRotationVideoName(day, 'startHereGolf'),
-    phase1FitnessWall: buildRotationVideoName(day, 'phase1FitnessWall'),
-    phase1FitnessNoWall: buildRotationVideoName(day, 'phase1FitnessNoWall'),
-    phase1GolfWall: buildRotationVideoName(day, 'phase1GolfWall'),
-    phase1GolfNoWall: buildRotationVideoName(day, 'phase1GolfNoWall'),
-    phase2: buildRotationVideoName(day, 'phase2'),
-    fullProgram: buildRotationVideoName(day, 'fullProgram'),
+    defaultFitness: '',
+    defaultGolf: '',
+    startHereFitness: '',
+    startHereGolf: '',
+    phase1FitnessWall: '',
+    phase1FitnessNoWall: '',
+    phase1GolfWall: '',
+    phase1GolfNoWall: '',
+    phase2: '',
+    fullProgram: '',
   };
 }
 
@@ -138,50 +140,7 @@ export const rotationEditableColumns: {
   { key: 'fullProgram', label: 'All Deployments', group: 'Full Program' },
 ];
 
-export function getPreviewRotationRows(
-  allRows: RotationScheduleRow[],
-  extraDays: number[] = [],
-): RotationScheduleRow[] {
-  const previewDays = [...new Set([14, 15, 16, 17, 18, 36, ...extraDays])].sort((a, b) => a - b);
-  const dataRows = previewDays
-    .map((day) => allRows.find((row) => row.day === day))
-    .filter((row): row is RotationScheduleRow => row !== undefined);
-
-  if (dataRows.length <= 6) {
-    return dataRows;
-  }
-
-  const firstChunk = dataRows.slice(0, 5);
-  const lastRow = dataRows[dataRows.length - 1]!;
-
-  return [
-    ...firstChunk,
-    {
-      id: 'ellipsis',
-      day: 0,
-      dayLabel: '…',
-      dateLabel: '…',
-      defaultFitness: '…',
-      defaultGolf: '…',
-      startHereFitness: '…',
-      startHereGolf: '…',
-      phase1FitnessWall: '…',
-      phase1FitnessNoWall: '…',
-      phase1GolfWall: '…',
-      phase1GolfNoWall: '…',
-      phase2: '…',
-      fullProgram: '…',
-      isEllipsis: true,
-    },
-    lastRow,
-  ];
-}
-
 export { buildVideoRow };
-
-export const mockRotationScheduleRows: RotationScheduleRow[] = getPreviewRotationRows(
-  createInitialRotationSchedule(),
-);
 
 export const currentRotationDay = 15;
 
@@ -204,8 +163,9 @@ export function getScheduleColumnForCategory(
   return columnMap[categoryId];
 }
 
-export function toScheduleVideoName(title: string): string {
-  return title.replace(/\.mp4$/i, '').trim();
+export function toScheduleVideoName(title: string | null | undefined): string {
+  if (title == null) return '';
+  return String(title).replace(/\.mp4$/i, '').trim();
 }
 
 export function getViewFilterForCategory(categoryId: ContentCategoryId): RotationViewFilter {

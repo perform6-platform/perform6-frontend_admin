@@ -42,8 +42,8 @@ export function MetricCard({
             className={cn(
               'rounded-full px-2 py-0.5 text-caption font-semibold',
               trendDirection === 'up'
-                ? 'bg-emerald-50 text-emerald-600'
-                : 'bg-red-50 text-red-500',
+                ? 'bg-[rgba(40,199,111,0.12)] text-status-success'
+                : 'bg-[rgba(234,84,85,0.12)] text-status-danger',
             )}
           >
             {trendDirection === 'up' ? '↑' : '↓'} {trend}

@@ -1,12 +1,8 @@
 import { Menu } from 'lucide-react';
 import { useMobileNav } from '../../context/MobileNavContext';
 import { cn } from '../../lib/cn';
-import { ThemeToggle, UserMenu } from '../ui';
-
-const HEADER_USER = {
-  name: 'Admin User',
-  role: 'Super Admin',
-} as const;
+import { ThemeToggle } from '../ui';
+import HeaderUserMenu from './HeaderUserMenu';
 
 export default function MobileNavBar() {
   const { toggle } = useMobileNav();
@@ -40,7 +36,7 @@ export default function MobileNavBar() {
 
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           <ThemeToggle />
-          <UserMenu name={HEADER_USER.name} role={HEADER_USER.role} />
+          <HeaderUserMenu />
         </div>
       </div>
     </header>

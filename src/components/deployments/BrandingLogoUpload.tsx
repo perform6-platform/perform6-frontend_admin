@@ -3,39 +3,36 @@ import { useRef, type ChangeEvent } from 'react';
 import { cn } from '../../lib/cn';
 import { Button, SectionLabel } from '../ui';
 
-const acceptedLogoTypes = 'image/png,image/jpeg,image/jpg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg';
+const acceptedLogoTypes =
+  'image/png,image/jpeg,image/jpg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg';
 
 export interface BrandingLogoUploadProps {
-  value: string | null;
+  previewUrl: string | null;
   companyName?: string;
-  onChange: (value: string | null) => void;
+  onChange: (file: File | null, previewUrl: string | null) => void;
   className?: string;
 }
 
-function readImageFile(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(new Error('Failed to read logo file'));
-    reader.readAsDataURL(file);
-  });
-}
-
-export function BrandingLogoUpload({ value, companyName, onChange, className }: BrandingLogoUploadProps) {
+export function BrandingLogoUpload({
+  previewUrl,
+  companyName,
+  onChange,
+  className,
+}: BrandingLogoUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
-  async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
     if (!file.type.startsWith('image/')) return;
 
-    try {
-      const dataUrl = await readImageFile(file);
-      onChange(dataUrl);
-    } catch {
-      onChange(null);
-    }
+    const url = URL.createObjectURL(file);
+    onChange(file, url);
+  }
+
+  function clear() {
+    onChange(null, null);
   }
 
   return (
@@ -43,7 +40,7 @@ export function BrandingLogoUpload({ value, companyName, onChange, className }: 
       <div>
         <SectionLabel className="mb-1 block">Company logo</SectionLabel>
         <p className="text-body-sm text-content-secondary">
-          Upload a logo for this company. It appears next to the company name on deployed videos.
+          Upload a logo for custom branding. Required when branding mode is Custom.
         </p>
       </div>
 
@@ -55,28 +52,19 @@ export function BrandingLogoUpload({ value, companyName, onChange, className }: 
         onChange={handleFileChange}
       />
 
-      {value ? (
+      {previewUrl ? (
         <div className="flex items-center gap-4 rounded-lg border border-surface-border bg-surface-muted/30 p-3">
           <div className="relative h-16 w-28 overflow-hidden rounded-md border border-surface-border bg-surface">
-            <div className="h-full w-full bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800" />
-            <div className="absolute left-1.5 top-1.5 flex max-w-[calc(100%-0.75rem)] items-center gap-1 rounded bg-white/95 px-1 py-0.5 shadow-sm">
-              {value && (
-                <img
-                  src={value}
-                  alt=""
-                  className="h-4 w-4 shrink-0 rounded object-contain"
-                />
-              )}
-              {companyName?.trim() && (
-                <span className="truncate text-[8px] font-semibold text-slate-900">
-                  {companyName.trim()}
-                </span>
-              )}
-            </div>
+            <img src={previewUrl} alt="" className="h-full w-full object-contain" />
+            {companyName?.trim() && (
+              <div className="absolute left-1.5 top-1.5 max-w-[calc(100%-0.75rem)] truncate rounded bg-white/95 px-1 py-0.5 text-[8px] font-semibold text-p6-gray-950 shadow-sm">
+                {companyName.trim()}
+              </div>
+            )}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-body-sm font-medium text-content-primary">Logo uploaded</p>
-            <p className="text-caption text-content-secondary">Shown on video previews during deployment.</p>
+            <p className="text-body-sm font-medium text-content-primary">Logo ready</p>
+            <p className="text-caption text-content-secondary">Will be uploaded on deploy.</p>
           </div>
           <Button
             type="button"
@@ -91,7 +79,7 @@ export function BrandingLogoUpload({ value, companyName, onChange, className }: 
             type="button"
             aria-label="Remove branding logo"
             className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-content-muted transition-colors hover:bg-surface-muted hover:text-content-primary"
-            onClick={() => onChange(null)}
+            onClick={clear}
           >
             <X className="h-4 w-4" />
           </button>

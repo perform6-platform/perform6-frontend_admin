@@ -1,25 +1,61 @@
 import { Monitor } from 'lucide-react';
 import type { Device } from '../../constants/devices';
-import { getRotationRowForDay } from '../../constants/rotationSchedule';
-import { useDeployments } from '../../context/DeploymentsContext';
-import { useRotationSchedule } from '../../context/RotationScheduleContext';
+import { useDevicePlayback } from '../../hooks/useRotation';
 import { cn } from '../../lib/cn';
-import {
-  getDeviceRotationDay,
-  getDeviceVideosForDay,
-  getLatestDeploymentForDevice,
-} from '../../lib/deviceSchedule';
+import { resolveStorageUrl } from '../../lib/libraryType';
+import type { ManifestSlot } from '../../types/deployments';
 import { BrightSignDeviceImage } from '../devices/BrightSignDeviceImage';
 import { Badge, CARD_SURFACE_CLASS, SectionLabel } from '../ui';
 
 export interface DeviceMonitoringPanelProps {
   device: Device | null;
+  autoRefresh?: boolean;
   className?: string;
 }
 
-export function DeviceMonitoringPanel({ device, className }: DeviceMonitoringPanelProps) {
-  const { deployments } = useDeployments();
-  const { rows } = useRotationSchedule();
+interface PlayingEntry {
+  key: string;
+  group: string;
+  label: string;
+  video: string;
+  thumbnail?: string;
+}
+
+function slotEntries(content: Record<string, ManifestSlot> | undefined): PlayingEntry[] {
+  if (!content) return [];
+
+  return Object.values(content).flatMap((slot) => {
+    const items = slot.items?.length
+      ? slot.items
+      : slot.metadata?.title
+        ? [
+            {
+              title: slot.metadata.title,
+              video: slot.metadata.title,
+              thumbnail: slot.metadata.thumbnail,
+              mediaVersionId: `${slot.slot}-meta`,
+            },
+          ]
+        : [];
+
+    return items.map((item, index) => ({
+      key: `${slot.slot}-${item.mediaVersionId ?? index}`,
+      group: slot.libraryType || slot.slot,
+      label: slot.label || slot.slot,
+      video: item.title || item.video || 'Untitled',
+      thumbnail: resolveStorageUrl(item.thumbnail) ?? undefined,
+    }));
+  });
+}
+
+export function DeviceMonitoringPanel({
+  device,
+  autoRefresh = false,
+  className,
+}: DeviceMonitoringPanelProps) {
+  const { data: playback, isLoading, isError } = useDevicePlayback(device?.id ?? null, {
+    refetchInterval: autoRefresh ? 30_000 : false,
+  });
 
   if (!device) {
     return (
@@ -29,10 +65,14 @@ export function DeviceMonitoringPanel({ device, className }: DeviceMonitoringPan
     );
   }
 
-  const deviceDeployment = getLatestDeploymentForDevice(deployments, device.id);
-  const rotationDay = getDeviceRotationDay(device, deviceDeployment);
-  const scheduleRow = getRotationRowForDay(rotationDay, rows);
-  const currentVideos = getDeviceVideosForDay(scheduleRow);
+  const rotationDay = playback?.rotationDay;
+  const currentVideos = slotEntries(playback?.content);
+  const dayLabel =
+    rotationDay != null
+      ? `Day ${rotationDay}`
+      : device.currentDay !== '—'
+        ? device.currentDay
+        : null;
 
   return (
     <div className={cn(CARD_SURFACE_CLASS, 'p-5 sm:p-6', className)}>
@@ -57,23 +97,35 @@ export function DeviceMonitoringPanel({ device, className }: DeviceMonitoringPan
             <Monitor className="h-5 w-5" />
           </div>
           <div>
-            <SectionLabel className="mb-1 block">Currently playing on Day {rotationDay}</SectionLabel>
+            <SectionLabel className="mb-1 block">
+              {dayLabel ? `Currently playing on ${dayLabel}` : 'Currently playing'}
+            </SectionLabel>
             <p className="text-body-sm text-content-secondary">
-              {device.name} · {device.location} · Day {rotationDay}
-              {scheduleRow ? ` · ${scheduleRow.dayLabel}, ${scheduleRow.dateLabel}` : ''}
+              {device.name} · {device.location}
+              {playback?.field ? ` · ${playback.field}` : ''}
+              {playback?.variant ? ` · ${playback.variant}` : ''}
+              {dayLabel ? ` · ${dayLabel}` : ''}
             </p>
           </div>
         </div>
 
-        {currentVideos.length === 0 ? (
+        {isLoading ? (
           <p className="rounded-lg border border-dashed border-surface-border px-4 py-8 text-center text-body-sm text-content-muted">
-            No videos assigned for this day. Set up the rotation schedule first.
+            Loading playback…
+          </p>
+        ) : isError ? (
+          <p className="rounded-lg border border-dashed border-surface-border px-4 py-8 text-center text-body-sm text-content-muted">
+            Could not load current playback for this device.
+          </p>
+        ) : currentVideos.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-surface-border px-4 py-8 text-center text-body-sm text-content-muted">
+            No content assigned for the current rotation day.
           </p>
         ) : (
           <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {currentVideos.map((entry) => (
               <li
-                key={`${entry.group}-${entry.label}`}
+                key={entry.key}
                 className="rounded-lg border border-surface-border bg-surface px-3 py-2.5"
               >
                 <p className="text-caption font-medium text-content-muted">

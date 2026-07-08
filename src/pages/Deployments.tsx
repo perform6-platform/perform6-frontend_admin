@@ -2,30 +2,9 @@ import { CalendarDays } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { NewDeploymentForm } from '../components/deployments/NewDeploymentForm';
 import { Button, PageTitle } from '../components/ui';
-import type { DeploymentSubmitPayload } from '../constants/deployments';
-import { useDeployments } from '../context/DeploymentsContext';
-import { useRotationSchedule } from '../context/RotationScheduleContext';
-import { useToast } from '../context/ToastContext';
 
 export default function Deployments() {
   const navigate = useNavigate();
-  const { addDeployment } = useDeployments();
-  const { applyDeploymentToSchedule } = useRotationSchedule();
-  const { showToast } = useToast();
-
-  function handleCreateDeployment(payload: DeploymentSubmitPayload) {
-    applyDeploymentToSchedule({
-      entries: payload.scheduleEntries,
-    });
-
-    addDeployment(payload);
-
-    showToast({
-      title: 'Deployment successful',
-      message: `"${payload.name}" has been deployed to ${payload.deviceName ?? payload.targetDevices} and added to the rotation schedule.`,
-      variant: 'success',
-    });
-  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -33,7 +12,7 @@ export default function Deployments() {
         <div>
           <PageTitle>Deployments</PageTitle>
           <p className="mt-1 text-body-sm text-content-secondary">
-            Configure content, select a device, and deploy to the rotation schedule.
+            Configure type, category, variant, pick a claimed device, set branding, and register.
           </p>
         </div>
         <Button
@@ -48,7 +27,7 @@ export default function Deployments() {
         </Button>
       </div>
 
-      <NewDeploymentForm onSubmit={handleCreateDeployment} />
+      <NewDeploymentForm />
     </div>
   );
 }

@@ -52,9 +52,11 @@ export function getDeviceVideosForDay(
 ): DeviceScheduleVideo[] {
   if (!row) return [];
 
-  return rotationEditableColumns.map((column) => ({
-    group: column.group,
-    label: column.label,
-    video: String(row[column.key]),
-  }));
+  return rotationEditableColumns
+    .map((column) => ({
+      group: column.group,
+      label: column.label,
+      video: String(row[column.key]),
+    }))
+    .filter((entry) => entry.video.trim().length > 0);
 }

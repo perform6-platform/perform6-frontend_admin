@@ -75,7 +75,7 @@ export function DeviceDetailsPanel({ device, className }: DeviceDetailsPanelProp
           </div>
           <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-surface-muted">
             <div
-              className="h-full rounded-full bg-[#2563eb]"
+              className="h-full rounded-full bg-brand-600"
               style={{ width: `${device.storageUsed}%` }}
             />
           </div>

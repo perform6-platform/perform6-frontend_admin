@@ -181,7 +181,7 @@ export function DeploymentDetailsModal({
               <section className={cn(CARD_SURFACE_CLASS, 'p-4 sm:p-5')}>
                 <SectionLabel className="mb-3 block">Company branding</SectionLabel>
                 <div className="flex items-center gap-4">
-                  <div className="relative h-20 w-36 overflow-hidden rounded-lg border border-surface-border bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800">
+                  <div className="relative h-20 w-36 overflow-hidden rounded-lg border border-surface-border bg-gradient-to-br from-p6-gray-300 to-p6-gray-400 dark:from-p6-gray-700 dark:to-p6-gray-900">
                     <div className="absolute left-2 top-2 flex max-w-[calc(100%-1rem)] items-center gap-1.5 rounded bg-white/95 px-1.5 py-1 shadow-sm">
                       {brandingDisplay.brandingLogoUrl && (
                         <img
@@ -191,7 +191,7 @@ export function DeploymentDetailsModal({
                         />
                       )}
                       {brandingDisplay.companyName && (
-                        <span className="truncate text-xs font-semibold text-slate-900">
+                        <span className="truncate text-xs font-semibold text-p6-gray-950">
                           {brandingDisplay.companyName}
                         </span>
                       )}

@@ -59,7 +59,7 @@ export function VideoThumbnailWithBranding({
           {companyName?.trim() && (
             <span
               className={cn(
-                'truncate text-[9px] font-semibold leading-none text-slate-900 sm:text-[10px]',
+                'truncate text-[9px] font-semibold leading-none text-p6-gray-950 sm:text-[10px]',
                 nameClassName,
               )}
             >

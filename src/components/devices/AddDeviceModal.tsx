@@ -1,29 +1,44 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Button, Input, Modal, ModalBody } from '../ui';
+import type { ClaimPairingPayload } from '../../types/devices';
 
 export interface AddDeviceModalProps {
   open: boolean;
   onClose: () => void;
-  onSubmit?: (payload: { deviceName: string; pairingCode: string }) => void;
+  onSubmit?: (payload: ClaimPairingPayload) => void;
+  isSubmitting?: boolean;
 }
 
-export function AddDeviceModal({ open, onClose, onSubmit }: AddDeviceModalProps) {
-  const [deviceName, setDeviceName] = useState('');
-  const [pairingCode, setPairingCode] = useState('');
+const emptyForm: ClaimPairingPayload = {
+  pairingCode: '',
+  deviceName: '',
+};
+
+export function AddDeviceModal({ open, onClose, onSubmit, isSubmitting = false }: AddDeviceModalProps) {
+  const [form, setForm] = useState(emptyForm);
+
+  useEffect(() => {
+    if (!open) {
+      setForm(emptyForm);
+    }
+  }, [open]);
 
   function handleClose() {
-    setDeviceName('');
-    setPairingCode('');
+    if (isSubmitting) return;
+    setForm(emptyForm);
     onClose();
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     onSubmit?.({
-      deviceName: deviceName.trim(),
-      pairingCode: pairingCode.trim(),
+      pairingCode: form.pairingCode.trim(),
+      deviceName: form.deviceName.trim(),
     });
-    handleClose();
+  }
+
+  function updateField<K extends keyof ClaimPairingPayload>(key: K, value: string) {
+    setForm((current) => ({ ...current, [key]: value }));
   }
 
   return (
@@ -31,14 +46,27 @@ export function AddDeviceModal({ open, onClose, onSubmit }: AddDeviceModalProps)
       open={open}
       onClose={handleClose}
       title="Add device"
-      description="Enter the pairing code shown on the BrightSign device to register it."
+      description="Enter the pairing code shown on the BrightSign device and give it a name to claim it."
       footer={
         <>
-          <Button type="button" variant="outline" size="sm" className="h-9 px-4" onClick={handleClose}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9 px-4"
+            onClick={handleClose}
+            disabled={isSubmitting}
+          >
             Cancel
           </Button>
-          <Button type="submit" form="add-device-form" size="sm" className="h-9 px-4">
-            Add device
+          <Button
+            type="submit"
+            form="add-device-form"
+            size="sm"
+            className="h-9 px-4"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Adding...' : 'Add device'}
           </Button>
         </>
       }
@@ -46,18 +74,17 @@ export function AddDeviceModal({ open, onClose, onSubmit }: AddDeviceModalProps)
       <ModalBody>
         <form id="add-device-form" onSubmit={handleSubmit} className="space-y-4">
           <Input
-            label="Device name"
-            placeholder="e.g. BrightSign-046"
-            value={deviceName}
-            onChange={(event) => setDeviceName(event.target.value)}
+            label="Pairing code"
+            placeholder="e.g. 482913"
+            value={form.pairingCode}
+            onChange={(event) => updateField('pairingCode', event.target.value)}
+            required
           />
           <Input
-            label="Pairing code"
-            placeholder="Enter 6-digit code"
-            value={pairingCode}
-            onChange={(event) => setPairingCode(event.target.value)}
-            inputMode="numeric"
-            maxLength={6}
+            label="Device name"
+            placeholder="e.g. Gym Screen 1"
+            value={form.deviceName}
+            onChange={(event) => updateField('deviceName', event.target.value)}
             required
           />
         </form>

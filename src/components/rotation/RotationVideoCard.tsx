@@ -32,7 +32,7 @@ export function RotationVideoCard({
       )}
     >
       <div className="flex min-w-0 flex-1 items-start gap-3">
-        <div className="relative h-14 w-24 shrink-0 overflow-hidden rounded-md border border-surface-border bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800">
+        <div className="relative h-14 w-24 shrink-0 overflow-hidden rounded-md border border-surface-border bg-gradient-to-br from-p6-gray-300 to-p6-gray-400 dark:from-p6-gray-700 dark:to-p6-gray-900">
           {video.thumbnailUrl ? (
             <img src={video.thumbnailUrl} alt="" className="h-full w-full object-cover" />
           ) : (
@@ -74,7 +74,7 @@ export function RotationVideoCard({
             <label className="flex items-center gap-1.5 text-body-sm text-content-secondary">
               <CalendarDays className="h-3.5 w-3.5" />
               <select
-                value={assignment.day}
+                value={assignment.day ?? 1}
                 disabled={!assignment.included}
                 onChange={(event) =>
                   onChange({ ...assignment, day: Number(event.target.value) })

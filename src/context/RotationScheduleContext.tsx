@@ -1,21 +1,31 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import type { ContentCategoryId } from '../constants/contentPlayback';
 import { getPlaybackCategoryForContent } from '../constants/contentPlayback';
 import type { DeploymentScheduleEntry } from '../constants/deployments';
 import {
   createInitialRotationSchedule,
-  getPreviewRotationRows,
   getRotationRowForDay,
   getScheduleColumnForCategory,
   toScheduleVideoName,
   type RotationScheduleColumnKey,
   type RotationScheduleRow,
 } from '../constants/rotationSchedule';
+import { useRotationPrograms } from '../hooks/useRotation';
 import { usesRotationForPlayback } from '../lib/deploymentHelpers';
+import { mapRotationProgramsToScheduleRows } from '../lib/rotationMapper';
 import {
   applyVideoAssignmentsToSchedule,
   type VideoAssignment,
 } from '../lib/rotationAssignments';
+import type { Program } from '../types/content';
 
 export interface DeploymentSchedulePayload {
   entries: DeploymentScheduleEntry[];
@@ -23,7 +33,9 @@ export interface DeploymentSchedulePayload {
 
 interface RotationScheduleContextValue {
   rows: RotationScheduleRow[];
-  previewRows: RotationScheduleRow[];
+  programs: Program[] | undefined;
+  isLoading: boolean;
+  isError: boolean;
   isEditing: boolean;
   setIsEditing: (value: boolean) => void;
   getRowByDay: (day: number) => RotationScheduleRow | undefined;
@@ -64,10 +76,15 @@ function applyDeploymentToScheduleRows(
 const RotationScheduleContext = createContext<RotationScheduleContextValue | null>(null);
 
 export function RotationScheduleProvider({ children }: { children: ReactNode }) {
-  const [rows, setRows] = useState<RotationScheduleRow[]>(createInitialRotationSchedule);
+  const { data: programs, isLoading, isError } = useRotationPrograms();
+  const [rows, setRows] = useState<RotationScheduleRow[]>([]);
   const [isEditing, setIsEditing] = useState(false);
 
-  const previewRows = useMemo(() => getPreviewRotationRows(rows), [rows]);
+  useEffect(() => {
+    if (programs) {
+      setRows(mapRotationProgramsToScheduleRows(programs));
+    }
+  }, [programs]);
 
   const getRowByDay = useCallback(
     (day: number) => getRotationRowForDay(day, rows),
@@ -101,13 +118,19 @@ export function RotationScheduleProvider({ children }: { children: ReactNode }) 
   }, []);
 
   const resetSchedule = useCallback(() => {
+    if (programs) {
+      setRows(mapRotationProgramsToScheduleRows(programs));
+      return;
+    }
     setRows(createInitialRotationSchedule());
-  }, []);
+  }, [programs]);
 
   const value = useMemo(
     () => ({
       rows,
-      previewRows,
+      programs,
+      isLoading,
+      isError,
       isEditing,
       setIsEditing,
       getRowByDay,
@@ -116,7 +139,18 @@ export function RotationScheduleProvider({ children }: { children: ReactNode }) 
       applyRotationAssignments,
       resetSchedule,
     }),
-    [rows, previewRows, isEditing, getRowByDay, updateDayRow, applyDeploymentToSchedule, applyRotationAssignments, resetSchedule],
+    [
+      rows,
+      programs,
+      isLoading,
+      isError,
+      isEditing,
+      getRowByDay,
+      updateDayRow,
+      applyDeploymentToSchedule,
+      applyRotationAssignments,
+      resetSchedule,
+    ],
   );
 
   return (

@@ -1,11 +1,7 @@
-import { ThemeToggle, UserMenu } from '../ui';
+import { ThemeToggle } from '../ui';
 import { CARD_SURFACE_CLASS } from '../ui/cardStyles';
 import { cn } from '../../lib/cn';
-
-const HEADER_USER = {
-  name: 'Admin User',
-  role: 'Super Admin',
-} as const;
+import HeaderUserMenu from './HeaderUserMenu';
 
 const PAGE_HEADER_ACTIONS_CLASS =
   'flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-3';
@@ -26,7 +22,7 @@ export default function PageHeader() {
       </div>
       <div className={PAGE_HEADER_ACTIONS_CLASS}>
         <ThemeToggle className="shrink-0 self-end sm:self-auto" />
-        <UserMenu name={HEADER_USER.name} role={HEADER_USER.role} />
+        <HeaderUserMenu />
       </div>
     </header>
   );

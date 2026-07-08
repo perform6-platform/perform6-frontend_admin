@@ -4,9 +4,9 @@ import { cn } from '../../lib/cn';
 type BadgeVariant = 'success' | 'danger' | 'warning' | 'neutral' | 'brand';
 
 const variantStyles: Record<BadgeVariant, string> = {
-  success: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400',
-  danger: 'bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-400',
-  warning: 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400',
+  success: 'bg-[rgba(40,199,111,0.12)] text-status-success',
+  danger: 'bg-[rgba(234,84,85,0.12)] text-status-danger',
+  warning: 'bg-[rgba(255,159,67,0.12)] text-status-warning',
   neutral: 'bg-surface-muted text-content-secondary',
   brand: 'bg-brand-50 text-brand-600 dark:bg-brand-600/15 dark:text-brand-400',
 };

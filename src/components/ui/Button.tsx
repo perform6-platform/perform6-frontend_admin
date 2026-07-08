@@ -62,7 +62,7 @@ export function QuickActionButton({ icon, label, className, ...props }: QuickAct
       className={cn(
         'flex flex-1 items-center justify-center gap-2 rounded-card border border-transparent',
         'bg-surface px-4 py-3 text-body-sm font-medium text-content-primary shadow-card transition-all',
-        'hover:-translate-y-0.5 hover:shadow-[0_8px_28px_rgba(15,23,42,0.08)]',
+        'hover:-translate-y-0.5 hover:shadow-[0_8px_28px_rgba(30,34,41,0.08)]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40',
         className,
       )}

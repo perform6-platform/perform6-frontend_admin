@@ -1,12 +1,10 @@
-import { mockContentItems } from '../constants/contentLibrary';
-import type { ContentCategoryId } from '../constants/contentPlayback';
+import type { ContentCategoryId, ContentTrack } from '../constants/contentPlayback';
 import type { ContentItem } from '../constants/contentLibrary';
 import type { Deployment, DeploymentScheduleEntry } from '../constants/deployments';
 import { currentRotationDay } from '../constants/rotationSchedule';
 import {
   getDeploymentBundleVideos,
   resolveDeploymentCategoryId,
-  type ContentTrack,
   type DeploymentMode,
   type ExerciseVariation,
 } from './deploymentHelpers';
@@ -22,10 +20,9 @@ interface InferredDeploymentProfile {
   focusDay: number;
 }
 
-function getVideosByCategory(categoryId: ContentCategoryId): ContentItem[] {
-  return mockContentItems.filter(
-    (item) => item.categoryId === categoryId && item.mediaType === 'video',
-  );
+/** Prefer wired content library (empty if not yet loaded in this helper context). */
+function getVideosByCategory(_categoryId: ContentCategoryId): ContentItem[] {
+  return [];
 }
 
 function parseFocusDay(deployment: Deployment): number {

@@ -1,24 +1,31 @@
 import { useEffect, useMemo, useState } from 'react';
 import { DeviceMonitoringList } from '../components/device-monitoring/DeviceMonitoringList';
 import { DeviceMonitoringPanel } from '../components/device-monitoring/DeviceMonitoringPanel';
-import { Dropdown, PageTitle, Switch } from '../components/ui';
-import { mockDevices } from '../constants/devices';
+import { Dropdown, PageTitle } from '../components/ui';
 import { deviceMonitoringFilterOptions } from '../constants/deviceMonitoring';
+import { useFleetStatus } from '../hooks/useMonitoring';
+import { mapRegisteredDevice } from '../lib/deviceMapper';
 
 export default function DeviceMonitoring() {
   const [filter, setFilter] = useState('all');
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>('1');
-  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
+
+  const { data: fleetStatus } = useFleetStatus();
+
+  const devices = useMemo(
+    () => (fleetStatus?.devices ?? []).map(mapRegisteredDevice),
+    [fleetStatus],
+  );
 
   const filteredDevices = useMemo(() => {
     if (filter === 'online') {
-      return mockDevices.filter((device) => device.status === 'online');
+      return devices.filter((device) => device.status === 'online');
     }
     if (filter === 'offline') {
-      return mockDevices.filter((device) => device.status === 'offline');
+      return devices.filter((device) => device.status === 'offline');
     }
-    return mockDevices;
-  }, [filter]);
+    return devices;
+  }, [filter, devices]);
 
   const selectedDevice = useMemo(() => {
     if (selectedDeviceId) {
@@ -45,7 +52,6 @@ export default function DeviceMonitoring() {
             onChange={setFilter}
             className="w-full sm:w-auto"
           />
-          <Switch checked={autoRefresh} onChange={setAutoRefresh} label="Auto Refresh" className="shrink-0" />
         </div>
       </div>
 

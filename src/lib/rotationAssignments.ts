@@ -1,6 +1,7 @@
 import type { ContentItem } from '../constants/contentLibrary';
 import type { ContentCategoryId } from '../constants/contentPlayback';
-import { buildRotationVideoName, getPlaybackCategoryForContent } from '../constants/contentPlayback';
+import { getPlaybackCategoryForContent } from '../constants/contentPlayback';
+import type { Program, ProgramSession } from '../types/content';
 import {
   getScheduleColumnForCategory,
   toScheduleVideoName,
@@ -8,7 +9,8 @@ import {
   type RotationScheduleRow,
 } from '../constants/rotationSchedule';
 import { usesRotationForPlayback } from './deploymentHelpers';
-
+import { getSessionMediaVersionId, normalizeRotationPrograms } from './rotationMapper';
+import { libraryTypeToCategory } from './libraryType';
 export interface VideoAssignment {
   categoryId: ContentCategoryId;
   videoTitle: string;
@@ -68,6 +70,72 @@ export function getScheduledVideosForCategory(
     const day = findVideoDayInSchedule(rows, column, video.title);
     return day ? [{ video, day }] : [];
   });
+}
+
+function findVideoForSession(
+  videos: ContentItem[],
+  session: ProgramSession,
+): ContentItem | undefined {
+  const mediaVersionId = getSessionMediaVersionId(session);
+  if (mediaVersionId) {
+    const byVersion = videos.find((video) => video.mediaVersionId === mediaVersionId);
+    if (byVersion) return byVersion;
+  }
+
+  const normalizedSessionTitle = toScheduleVideoName(session.title);
+  return videos.find((video) => toScheduleVideoName(video.title) === normalizedSessionTitle);
+}
+
+/** Build UI assignment state directly from GET /rotation programs (matches by mediaVersionId). */
+export function buildVideoAssignmentsFromPrograms(
+  programs: Program[] | unknown,
+  getVideosByCategory: (categoryId: ContentCategoryId) => ContentItem[],
+): Record<string, VideoAssignmentState> {
+  const assignments: Record<string, VideoAssignmentState> = {};
+  const normalizedPrograms = Array.isArray(programs)
+    ? programs
+    : normalizeRotationPrograms(programs);
+
+  Object.values(columnCategoryMap).forEach((categoryId) => {
+    getVideosByCategory(categoryId).forEach((video) => {
+      assignments[getVideoAssignmentKey(categoryId, video.title)] = {
+        included: false,
+        day: video.rotationDay ?? 1,
+      };
+    });
+  });
+
+  for (const program of normalizedPrograms) {
+    const categoryId = libraryTypeToCategory(program.libraryType);
+    if (!categoryId) continue;
+
+    const videos = getVideosByCategory(categoryId);
+    const sessions = Array.isArray(program.sessions) ? program.sessions : [];
+
+    if (program.isRotating) {
+      for (const session of sessions) {
+        const video = findVideoForSession(videos, session);
+        if (!video) continue;
+        const dayNumber = Number(session.dayNumber);
+        assignments[getVideoAssignmentKey(categoryId, video.title)] = {
+          included: true,
+          day: Number.isFinite(dayNumber) && dayNumber > 0 ? dayNumber : 1,
+        };
+      }
+      continue;
+    }
+
+    const session = sessions.find((entry) => entry.dayNumber === 1) ?? sessions[0];
+    if (!session) continue;
+    const video = findVideoForSession(videos, session);
+    if (!video) continue;
+    assignments[getVideoAssignmentKey(categoryId, video.title)] = {
+      included: true,
+      day: 1,
+    };
+  }
+
+  return assignments;
 }
 
 export function buildVideoAssignmentsFromSchedule(
@@ -133,7 +201,7 @@ export function applyVideoAssignmentsToSchedule(
 
     nextRows = nextRows.map((row) => ({
       ...row,
-      [column]: buildRotationVideoName(row.day, column),
+      [column]: '',
     }));
 
     categoryAssignments

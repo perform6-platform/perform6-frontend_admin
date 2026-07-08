@@ -1,0 +1,43 @@
+import type { ContentCategoryId } from '../constants/contentPlayback';
+import type { LibraryType } from '../types/media';
+
+/** Map frontend sidebar category → backend libraryType enum. */
+export const CATEGORY_TO_LIBRARY_TYPE: Record<ContentCategoryId, LibraryType> = {
+  'default-fitness': 'DEFAULT_FITNESS',
+  'default-golf': 'DEFAULT_GOLF',
+  'start-here-fitness': 'START_HERE_FITNESS',
+  'start-here-golf': 'START_HERE_GOLF',
+  'phase-1-fitness-wall': 'FITNESS_WALL',
+  'phase-1-fitness-no-wall': 'FITNESS_NO_WALL',
+  'phase-1-golf-wall': 'GOLF_WALL',
+  'phase-1-golf-no-wall': 'GOLF_NO_WALL',
+  'phase-2': 'PHASE_2',
+  'full-program': 'FULL_PROGRAM',
+};
+
+export const LIBRARY_TYPE_TO_CATEGORY: Record<string, ContentCategoryId> = Object.fromEntries(
+  Object.entries(CATEGORY_TO_LIBRARY_TYPE).map(([category, libraryType]) => [
+    libraryType,
+    category as ContentCategoryId,
+  ]),
+) as Record<string, ContentCategoryId>;
+
+export function categoryToLibraryType(categoryId: ContentCategoryId): LibraryType {
+  return CATEGORY_TO_LIBRARY_TYPE[categoryId];
+}
+
+export function libraryTypeToCategory(libraryType: string | null | undefined): ContentCategoryId | null {
+  if (!libraryType) return null;
+  return LIBRARY_TYPE_TO_CATEGORY[libraryType] ?? null;
+}
+
+export function resolveStorageUrl(path: string | null | undefined): string | null {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path) || path.startsWith('blob:') || path.startsWith('data:')) {
+    return path;
+  }
+  const base = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api/v1')
+    .replace(/\/api\/v1\/?$/, '')
+    .replace(/\/+$/, '');
+  return `${base}${path.startsWith('/') ? path : `/${path}`}`;
+}

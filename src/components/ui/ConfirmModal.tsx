@@ -45,7 +45,8 @@ export function ConfirmModal({
             size="sm"
             className={cn(
               'h-9 px-4',
-              tone === 'danger' && 'border-red-600 bg-red-600 hover:border-red-700 hover:bg-red-700',
+              tone === 'danger' &&
+                'border-status-danger bg-status-danger hover:border-[#d64546] hover:bg-[#d64546]',
             )}
             onClick={handleConfirm}
           >

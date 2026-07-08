@@ -10,11 +10,37 @@ export default {
       colors: {
         page: 'var(--color-page-bg)',
         brand: {
-          50: '#EFF6FF',
-          100: '#DBEAFE',
-          500: '#3B82F6',
-          600: '#2563EB',
-          700: '#1D4ED8',
+          50: '#EAF2FF',
+          100: '#EAF2FF',
+          200: '#A3C4F7',
+          300: '#A3C4F7',
+          400: '#447FE6',
+          500: '#447FE6',
+          600: '#1155CC',
+          700: '#0A3A8C',
+          800: '#0A3A8C',
+          900: '#0A3A8C',
+          950: '#082E70',
+        },
+        p6: {
+          gray: {
+            0: '#FFFFFF',
+            100: '#F4F6FA',
+            300: '#D9DEE8',
+            400: '#9CA3AF',
+            600: '#6B7280',
+            700: '#4B5563',
+            900: '#2F3136',
+            950: '#1E2229',
+          },
+          fitness: {
+            bg: '#EAF2FF',
+            text: '#1C4FA3',
+          },
+          golf: {
+            bg: '#EAF8EE',
+            text: '#2A6240',
+          },
         },
         surface: {
           DEFAULT: 'var(--color-surface)',

@@ -42,8 +42,8 @@ export function DeviceMonitoringList({
                   className={cn(
                     'shrink-0 rounded-full px-2.5 py-0.5',
                     device.status === 'online'
-                      ? 'border border-emerald-500/30'
-                      : 'border border-red-500/30',
+                      ? 'border border-status-success/30'
+                      : 'border border-status-danger/30',
                   )}
                 >
                   {device.status === 'online' ? 'Online' : 'Offline'}

@@ -132,10 +132,10 @@ function PlaybackBadge({
 }) {
   const toneClass = {
     brand: 'bg-brand-500/10 text-brand-600 dark:text-brand-400',
-    warning: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+    warning: 'bg-[rgba(255,159,67,0.12)] text-status-warning',
     neutral: 'bg-surface-muted text-content-secondary',
-    success: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
-    purple: 'bg-violet-500/10 text-violet-700 dark:text-violet-400',
+    success: 'bg-[rgba(40,199,111,0.12)] text-status-success',
+    purple: 'bg-brand-100 text-brand-700 dark:bg-brand-600/20 dark:text-brand-300',
   }[tone];
 
   return (

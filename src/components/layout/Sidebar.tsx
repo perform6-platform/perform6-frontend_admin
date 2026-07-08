@@ -7,6 +7,7 @@ import { mainNavigation } from '../../constants/navigation';
 import { PERFORM6_LOGO_URL } from '../../constants/branding';
 import { useMobileNav } from '../../context/MobileNavContext';
 import { useSidebarCollapse } from '../../context/SidebarCollapseContext';
+import { useLogout } from '../../hooks/useLogout';
 import { cn } from '../../lib/cn';
 
 interface SidebarTooltipProps {
@@ -25,10 +26,9 @@ function SidebarTooltip({ label, collapsed, children }: SidebarTooltipProps) {
         role="tooltip"
         className={cn(
           'pointer-events-none absolute left-[calc(100%+0.625rem)] top-1/2 z-50 -translate-y-1/2',
-          'whitespace-nowrap rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg',
+          'whitespace-nowrap rounded-lg bg-p6-gray-950 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg',
           'opacity-0 transition-opacity duration-150',
           'group-hover/tooltip:opacity-100 group-focus-within/tooltip:opacity-100',
-          'dark:bg-slate-800',
         )}
       >
         {label}
@@ -59,7 +59,7 @@ function SidebarNavItem({
       <SidebarTooltip label={label} collapsed={collapsed}>
         <span
           className={cn(
-            'flex items-center rounded-lg text-body-sm text-content-muted',
+            'flex items-center rounded-lg text-body-sm text-white/50',
             'cursor-not-allowed opacity-60',
             collapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5',
           )}
@@ -91,7 +91,7 @@ function SidebarNavItem({
             <Icon
               className={cn(
                 'h-[18px] w-[18px] shrink-0',
-                isActive ? 'text-current' : 'text-content-muted',
+                isActive ? 'text-white' : 'text-white/60',
               )}
             />
             {!collapsed && <span className="truncate">{label}</span>}
@@ -124,10 +124,15 @@ export function SidebarPanel({
   isCollapsedView = false,
 }: SidebarPanelProps) {
   const navigate = useNavigate();
+  const { mutate: logout, isPending: isLoggingOut } = useLogout({
+    onSuccess: () => {
+      onNavigate?.();
+      navigate('/login');
+    },
+  });
 
   function handleLogout() {
-    onNavigate?.();
-    navigate('/login');
+    logout();
   }
 
   return (
@@ -145,9 +150,9 @@ export function SidebarPanel({
             aria-label={isCollapsedView ? 'Expand sidebar' : 'Collapse sidebar'}
             className={cn(
               'absolute -right-3 top-1/2 z-30 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full',
-              'border-2 border-white bg-indigo-600 text-white shadow-[0_4px_12px_rgba(79,70,229,0.35)]',
-              'transition-transform hover:scale-105 hover:bg-indigo-700',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40',
+              'border-2 border-white bg-brand-600 text-white shadow-[0_4px_12px_rgba(17,85,204,0.35)]',
+              'transition-transform hover:scale-105 hover:bg-brand-500',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40',
             )}
           >
             {isCollapsedView ? (
@@ -183,7 +188,7 @@ export function SidebarPanel({
             aria-label="Close menu"
             className={cn(
               'inline-flex h-9 w-9 items-center justify-center rounded-lg',
-              'border border-surface-border text-content-secondary hover:bg-surface-muted',
+              'border border-white/20 text-white/80 hover:bg-brand-500/30 hover:text-white',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40',
             )}
           >
@@ -197,7 +202,7 @@ export function SidebarPanel({
             aria-label="Close menu"
             className={cn(
               'absolute right-3 top-4 inline-flex h-8 w-8 items-center justify-center rounded-lg',
-              'text-content-secondary hover:bg-surface-muted',
+              'text-white/80 hover:bg-brand-500/30 hover:text-white',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40',
             )}
           >
@@ -224,7 +229,7 @@ export function SidebarPanel({
 
       <div
         className={cn(
-          'border-t border-surface-border/80 py-4',
+          'border-t border-white/15 py-4',
           collapsed ? 'px-2' : 'px-5',
         )}
       >
@@ -232,10 +237,11 @@ export function SidebarPanel({
           <button
             type="button"
             onClick={handleLogout}
+            disabled={isLoggingOut}
             className={cn(
-              'flex w-full items-center text-body-sm font-medium text-content-secondary transition-colors',
-              'hover:text-content-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40',
-              collapsed ? 'justify-center px-2 py-2' : 'gap-3',
+              'flex w-full items-center rounded-xl text-body-sm font-medium text-white/80 transition-colors',
+              'hover:bg-brand-500/30 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40',
+              collapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5',
             )}
           >
             <LogOut className="h-[18px] w-[18px] shrink-0" />
@@ -278,7 +284,7 @@ export default function Sidebar() {
         <button
           type="button"
           aria-label="Close menu overlay"
-          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          className="fixed inset-0 z-40 bg-p6-gray-950/45 lg:hidden"
           onClick={close}
         />
       )}

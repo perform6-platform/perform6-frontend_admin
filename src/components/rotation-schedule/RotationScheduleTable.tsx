@@ -1,92 +1,172 @@
 import { Eye, Pencil } from 'lucide-react';
-import type { RotationScheduleRow, RotationScheduleColumnKey } from '../../constants/rotationSchedule';
+import type {
+  DeploymentScheduleTableColumn,
+  DeploymentScheduleTableRow,
+} from '../../types/deployments';
 import {
-  getRotationScheduleCellValue,
-  rotationColumnGroups,
-  rotationFlatColumns,
-} from '../../constants/rotationSchedule';
+  getScheduleColumnVariantLabel,
+  groupScheduleColumns,
+  hasScheduleVariantSubHeaders,
+  scheduleColumnNeedsVariantSubHeader,
+  scheduleGroupNeedsSubHeaderRow,
+} from '../../lib/scheduleTable';
 import { cn } from '../../lib/cn';
 import { IconButton } from '../ui';
 import { CARD_SURFACE_CLASS } from '../ui/cardStyles';
+import { ScheduleTableCell } from './ScheduleTableCell';
 
 const SCHEDULE_FOOTER_NOTE =
-  'Sample schedule excerpt shown for reference. Complete 36-day rotation follows the same assignment logic and repeats continuously.';
+  'Schedule preview from the deployment API. Assign videos in Rotation to update each day.';
 
-type ColumnKey = keyof Omit<RotationScheduleRow, 'id' | 'isEllipsis'>;
+const FIXED_COLUMNS = [
+  { key: 'day', label: 'Day' },
+  { key: 'date', label: 'Date' },
+  { key: 'rotationDay', label: 'Rotation Day' },
+] as const;
 
 const thBaseClass =
   'whitespace-nowrap px-3 py-2 text-center text-table-header font-semibold uppercase';
 
-function getTrackTone(key: string): 'fitness' | 'golf' | null {
-  const lower = key.toLowerCase();
-  if (lower.includes('fitness')) return 'fitness';
-  if (lower.includes('golf')) return 'golf';
-  return null;
+function isGolfColumn(column: DeploymentScheduleTableColumn): boolean {
+  const libraryType = (column.libraryType ?? '').toUpperCase();
+  const combined = `${column.key} ${column.label} ${column.group ?? ''}`.toLowerCase();
+  return libraryType.includes('GOLF') || combined.includes('golf');
 }
 
-function getTrackHeaderClass(key: string) {
-  const track = getTrackTone(key);
-  if (track === 'fitness') return 'rotation-schedule-header-fitness';
-  if (track === 'golf') return 'rotation-schedule-header-golf';
-  return 'rotation-schedule-header-group';
+function isFitnessColumn(column: DeploymentScheduleTableColumn): boolean {
+  const libraryType = (column.libraryType ?? '').toUpperCase();
+  const combined = `${column.key} ${column.label} ${column.group ?? ''}`.toLowerCase();
+  return libraryType.includes('FITNESS') || combined.includes('fitness');
 }
 
-function getPhase1LeafLabel(key: string): string {
-  if (key.includes('NoWall')) return 'No Wall';
-  if (key.includes('Wall')) return 'Wall';
-  return '';
-}
+/** Perform6 schedule header theme — group / track / variant tiers. */
+function getScheduleHeaderClass(
+  column: DeploymentScheduleTableColumn,
+  tier: 'group' | 'track' | 'variant',
+): string {
+  if (tier === 'group') {
+    return 'rotation-schedule-header-group';
+  }
 
-function isSingleSpanGroup(label: string) {
-  return label === 'Phase 2' || label === 'Full Program';
+  if (tier === 'track') {
+    if (isGolfColumn(column)) return 'rotation-schedule-header-golf';
+    if (isFitnessColumn(column)) return 'rotation-schedule-header-fitness';
+    return 'rotation-schedule-header-group';
+  }
+
+  if (isGolfColumn(column)) return 'rotation-schedule-header-golf-leaf';
+  return 'rotation-schedule-header-fitness-leaf';
 }
 
 export interface RotationScheduleTableProps {
-  rows: RotationScheduleRow[];
-  viewFilter?: 'all' | 'fitness' | 'golf' | 'rotation';
+  columns: DeploymentScheduleTableColumn[];
+  rows: DeploymentScheduleTableRow[];
   isEditing?: boolean;
   onEditDay?: (day: number) => void;
-  highlightCell?: { day: number; column: RotationScheduleColumnKey };
-  highlightDay?: number;
-  visibleColumnKeys?: string[];
+  highlightCell?: { day: number; columnKey: string };
+  highlightRotationDay?: number;
   showViewActions?: boolean;
-  onViewRow?: (row: RotationScheduleRow) => void;
-}
-
-function isColumnVisible(key: string, viewFilter: RotationScheduleTableProps['viewFilter']): boolean {
-  if (!viewFilter || viewFilter === 'all') return true;
-  if (viewFilter === 'rotation') {
-    return !['day', 'date', 'defaultFitness', 'defaultGolf', 'startHereFitness', 'startHereGolf'].includes(
-      key,
-    );
-  }
-  if (viewFilter === 'fitness') {
-    return !['phase1GolfWall', 'phase1GolfNoWall', 'defaultGolf', 'startHereGolf'].includes(key);
-  }
-  if (viewFilter === 'golf') {
-    return !['phase1FitnessWall', 'phase1FitnessNoWall', 'defaultFitness', 'startHereFitness'].includes(key);
-  }
-  return true;
+  onViewRow?: (row: DeploymentScheduleTableRow) => void;
+  footerNote?: string;
 }
 
 function RotationScheduleTableHeader({
+  columns,
   showActions,
   showViewActions,
   headerRowCount,
-  visibleGroups,
-  hasPhase1,
+  columnGroups,
 }: {
+  columns: DeploymentScheduleTableColumn[];
   showActions: boolean;
   showViewActions: boolean;
   headerRowCount: number;
-  visibleGroups: { label: string; columns: (typeof rotationFlatColumns)[number][] }[];
-  hasPhase1: boolean;
+  columnGroups: ReturnType<typeof groupScheduleColumns>;
 }) {
-  const phase1Group = visibleGroups.find((group) => group.label === 'Phase 1');
-  const phase1FitnessColumns =
-    phase1Group?.columns.filter((column) => getTrackTone(column.key) === 'fitness') ?? [];
-  const phase1GolfColumns =
-    phase1Group?.columns.filter((column) => getTrackTone(column.key) === 'golf') ?? [];
+  const useSubHeaderRow = headerRowCount >= 2;
+
+  function renderDynamicHeaders() {
+    if (!useSubHeaderRow) {
+      return columns.map((column) => (
+        <th
+          key={column.key}
+          className={cn(thBaseClass, getScheduleHeaderClass(column, 'group'))}
+        >
+          {normalizeColumnGroupLabel(column)}
+        </th>
+      ));
+    }
+
+    return columnGroups.flatMap((group) => {
+      const needsSubRow = scheduleGroupNeedsSubHeaderRow(group.columns);
+      const groupLabel = group.label || group.columns[0]?.label || '';
+
+      if (!needsSubRow) {
+        return group.columns.map((column) => (
+          <th
+            key={column.key}
+            rowSpan={2}
+            className={cn(thBaseClass, 'rotation-schedule-header-group')}
+          >
+            {groupLabel || column.label}
+          </th>
+        ));
+      }
+
+      if (group.label && group.columns.length > 1) {
+        return [
+          <th
+            key={group.label}
+            colSpan={group.columns.length}
+            className={cn(thBaseClass, 'rotation-schedule-header-group')}
+          >
+            {group.label}
+          </th>,
+        ];
+      }
+
+      return group.columns.map((column) => (
+        <th key={column.key} className={cn(thBaseClass, 'rotation-schedule-header-group')}>
+          {group.label || column.label}
+        </th>
+      ));
+    });
+  }
+
+  function renderSubHeaderRow() {
+    return columnGroups.flatMap((group) => {
+      if (!scheduleGroupNeedsSubHeaderRow(group.columns)) {
+        return [];
+      }
+
+      if (group.label && group.columns.length > 1) {
+        return group.columns.map((column) => {
+          const leafLabel = getScheduleColumnVariantLabel(column) ?? column.label;
+          const tier =
+            getScheduleColumnVariantLabel(column) ||
+            /wall|no wall/i.test(column.label)
+              ? 'variant'
+              : 'track';
+          return (
+            <th key={column.key} className={cn(thBaseClass, getScheduleHeaderClass(column, tier))}>
+              {leafLabel}
+            </th>
+          );
+        });
+      }
+
+      return group.columns
+        .filter(scheduleColumnNeedsVariantSubHeader)
+        .map((column) => (
+          <th
+            key={column.key}
+            className={cn(thBaseClass, getScheduleHeaderClass(column, 'variant'))}
+          >
+            {getScheduleColumnVariantLabel(column)}
+          </th>
+        ));
+    });
+  }
 
   return (
     <thead>
@@ -94,142 +174,63 @@ function RotationScheduleTableHeader({
         {showActions && (
           <th
             rowSpan={headerRowCount}
-            className={cn(thBaseClass, 'rotation-schedule-header-neutral w-12 text-white')}
+            className={cn(thBaseClass, 'rotation-schedule-header-neutral w-12')}
           >
             Edit
           </th>
         )}
-        {visibleGroups
-          .filter((group) => !group.label)
-          .flatMap((group) =>
-            group.columns.map((column) => (
-              <th
-                key={column.key}
-                rowSpan={headerRowCount}
-                className={cn(thBaseClass, 'rotation-schedule-header-neutral text-white')}
-              >
-                {column.label}
-              </th>
-            )),
-          )}
-        {visibleGroups
-          .filter((group) => group.label)
-          .map((group) => {
-            if (isSingleSpanGroup(group.label)) {
-              return (
-                <th
-                  key={group.label}
-                  rowSpan={headerRowCount}
-                  className={cn(thBaseClass, 'rotation-schedule-header-group text-white')}
-                >
-                  {group.label}
-                </th>
-              );
-            }
-
-            return (
-              <th
-                key={group.label}
-                colSpan={group.columns.length}
-                className={cn(thBaseClass, 'rotation-schedule-header-group text-white')}
-              >
-                {group.label}
-              </th>
-            );
-          })}
+        {FIXED_COLUMNS.map((column) => (
+          <th
+            key={column.key}
+            rowSpan={headerRowCount}
+            className={cn(thBaseClass, 'rotation-schedule-header-neutral')}
+          >
+            {column.label}
+          </th>
+        ))}
+        {renderDynamicHeaders()}
         {showViewActions && (
           <th
             rowSpan={headerRowCount}
-            className={cn(thBaseClass, 'rotation-schedule-header-neutral w-12 text-white')}
+            className={cn(thBaseClass, 'rotation-schedule-header-neutral w-12')}
           >
             View
           </th>
         )}
       </tr>
 
-      {headerRowCount >= 2 && (
-        <tr>
-          {visibleGroups
-            .filter((group) => group.label && !isSingleSpanGroup(group.label) && group.label !== 'Phase 1')
-            .flatMap((group) =>
-              group.columns.map((column) => (
-                <th
-                  key={column.key}
-                  className={cn(thBaseClass, getTrackHeaderClass(column.key))}
-                >
-                  {column.label}
-                </th>
-              )),
-            )}
-          {hasPhase1 && phase1FitnessColumns.length > 0 && (
-            <th
-              colSpan={phase1FitnessColumns.length}
-              className={cn(thBaseClass, 'rotation-schedule-header-fitness')}
-            >
-              Fitness
-            </th>
-          )}
-          {hasPhase1 && phase1GolfColumns.length > 0 && (
-            <th
-              colSpan={phase1GolfColumns.length}
-              className={cn(thBaseClass, 'rotation-schedule-header-golf')}
-            >
-              Golf
-            </th>
-          )}
-        </tr>
-      )}
-
-      {hasPhase1 && headerRowCount === 3 && (
-        <tr>
-          {phase1Group?.columns.map((column) => (
-            <th key={column.key} className={cn(thBaseClass, getTrackHeaderClass(column.key))}>
-              {getPhase1LeafLabel(column.key)}
-            </th>
-          ))}
-        </tr>
-      )}
+      {useSubHeaderRow && <tr>{renderSubHeaderRow()}</tr>}
     </thead>
   );
 }
 
+function normalizeColumnGroupLabel(column: DeploymentScheduleTableColumn): string {
+  const group = column.group?.trim();
+  if (group) return group;
+  return column.label;
+}
+
 export function RotationScheduleTable({
-  rows,
-  viewFilter = 'all',
+  columns = [],
+  rows = [],
   isEditing = false,
   onEditDay,
   highlightCell,
-  highlightDay,
-  visibleColumnKeys,
+  highlightRotationDay,
   showViewActions = false,
   onViewRow,
+  footerNote,
 }: RotationScheduleTableProps) {
-  const visibleColumns = rotationFlatColumns.filter((column) => {
-    if (visibleColumnKeys && !visibleColumnKeys.includes(column.key)) return false;
-    return isColumnVisible(column.key, viewFilter);
-  });
-  const visibleGroups = rotationColumnGroups
-    .map((group) => ({
-      label: group.label,
-      columns: group.columns.filter((column) => {
-        if (visibleColumnKeys && !visibleColumnKeys.includes(column.key)) return false;
-        return isColumnVisible(column.key, viewFilter);
-      }),
-    }))
-    .filter((group) => group.columns.length > 0);
-  const hasPhase1 = visibleGroups.some((group) => group.label === 'Phase 1');
-  const hasSubRow = visibleGroups.some(
-    (group) =>
-      group.label &&
-      !isSingleSpanGroup(group.label) &&
-      group.columns.length > 0,
-  );
-  const headerRowCount = hasPhase1 ? 3 : hasSubRow ? 2 : 1;
-  const showActions = isEditing && onEditDay;
-  const totalColumns = visibleColumns.length + (showActions ? 1 : 0) + (showViewActions ? 1 : 0);
-  const footerNote = showViewActions
-    ? 'Full 36-day schedule for the selected device. Use View on any row to see all videos for that day.'
-    : SCHEDULE_FOOTER_NOTE;
+  const columnGroups = groupScheduleColumns(columns);
+  const headerRowCount = hasScheduleVariantSubHeaders(columns) ? 2 : 1;
+  const showActions = isEditing && Boolean(onEditDay);
+  const totalColumns =
+    FIXED_COLUMNS.length + columns.length + (showActions ? 1 : 0) + (showViewActions ? 1 : 0);
+  const resolvedFooterNote =
+    footerNote ??
+    (showViewActions
+      ? 'Deployment schedule preview. Use View on any row to see all videos for that day.'
+      : SCHEDULE_FOOTER_NOTE);
 
   return (
     <div className={cn(CARD_SURFACE_CLASS, 'overflow-hidden p-0')}>
@@ -244,93 +245,93 @@ export function RotationScheduleTable({
       <p className="scroll-hint px-4 pt-3 text-caption text-content-muted">
         Swipe horizontally to view all columns →
       </p>
-      <div className="table-scroll-x w-full max-w-full overflow-x-auto overscroll-x-contain">
+      <div className="rotation-schedule-scroll table-scroll-x w-full max-w-full max-h-[min(70vh,720px)] overflow-auto overscroll-contain">
         <table className="rotation-schedule-table w-full min-w-[960px] border-collapse text-left xl:min-w-[1200px]">
-            <RotationScheduleTableHeader
-              showActions={showActions}
-              showViewActions={showViewActions}
-              headerRowCount={headerRowCount}
-              visibleGroups={visibleGroups}
-              hasPhase1={hasPhase1}
-            />
-            <tbody>
-              {rows.map((row) => {
-                const isHighlightedRow =
-                  (highlightDay === row.day || highlightCell?.day === row.day) && !row.isEllipsis;
-                return (
+          <RotationScheduleTableHeader
+            columns={columns}
+            showActions={showActions}
+            showViewActions={showViewActions}
+            headerRowCount={headerRowCount}
+            columnGroups={columnGroups}
+          />
+          <tbody>
+            {rows.map((row) => {
+              const isHighlightedRow =
+                highlightRotationDay === row.rotationDay || highlightCell?.day === row.day;
+              return (
                 <tr
-                  key={row.id}
+                  key={`${row.day}-${row.dateLabel}`}
                   className={cn(
-                    'border-b border-surface-border transition-colors',
-                    row.isEllipsis ? 'bg-surface-muted/30' : 'hover:bg-surface-muted/25',
+                    'border-b border-surface-border transition-colors hover:bg-surface-muted/25',
                     isHighlightedRow && 'bg-brand-50/60 dark:bg-brand-600/10',
                   )}
                 >
                   {showActions && (
                     <td className="px-2 py-2.5 text-center">
-                      {row.isEllipsis ? (
-                        <span className="text-content-muted">…</span>
-                      ) : (
-                        <IconButton
-                          label={`Edit Day ${row.day}`}
-                          className="mx-auto h-8 w-8"
-                          onClick={() => onEditDay(row.day)}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </IconButton>
-                      )}
+                      <IconButton
+                        label={`Edit Day ${row.day}`}
+                        className="mx-auto h-8 w-8"
+                        onClick={() => onEditDay?.(row.day)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </IconButton>
                     </td>
                   )}
-                  {visibleColumns.map((column) => {
+                  <td className="px-3 py-2.5 text-body-sm font-medium text-content-primary">
+                    {row.dayLabel}
+                  </td>
+                  <td className="px-3 py-2.5 text-body-sm font-medium text-content-primary">
+                    {row.dateLabel}
+                  </td>
+                  <td className="px-3 py-2.5 text-body-sm font-medium text-content-primary">
+                    {row.rotationDay}
+                  </td>
+                  {columns.map((column) => {
                     const isHighlightedCell =
-                      highlightCell?.day === row.day && highlightCell.column === column.key;
+                      highlightCell?.day === row.day && highlightCell.columnKey === column.key;
                     return (
-                    <td
-                      key={column.key}
-                      className={cn(
-                        'max-w-[180px] truncate px-3 py-2.5 text-body-sm xl:max-w-none xl:whitespace-nowrap',
-                        column.key === 'day' || column.key === 'date'
-                          ? 'font-medium text-content-primary'
-                          : 'text-content-secondary',
-                        isHighlightedCell &&
-                          'bg-brand-100 font-semibold text-brand-800 dark:bg-brand-600/20 dark:text-brand-200',
-                      )}
-                      title={getRotationScheduleCellValue(row, column.key)}
-                    >
-                      {getRotationScheduleCellValue(row, column.key)}
-                    </td>
+                      <td
+                        key={column.key}
+                        className={cn(
+                          'px-3 py-2.5',
+                          isHighlightedCell &&
+                            'bg-brand-100 dark:bg-brand-600/20',
+                        )}
+                      >
+                        <ScheduleTableCell
+                          cell={row.cells?.[column.key]}
+                          variantLabel={getScheduleColumnVariantLabel(column)}
+                          showVariant={Boolean(getScheduleColumnVariantLabel(column))}
+                        />
+                      </td>
                     );
                   })}
                   {showViewActions && onViewRow && (
                     <td className="px-2 py-2.5 text-center">
-                      {row.isEllipsis ? (
-                        <span className="text-content-muted">…</span>
-                      ) : (
-                        <IconButton
-                          label={`View Day ${row.day} videos`}
-                          className="mx-auto h-8 w-8"
-                          onClick={() => onViewRow(row)}
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                        </IconButton>
-                      )}
+                      <IconButton
+                        label={`View Day ${row.day} videos`}
+                        className="mx-auto h-8 w-8"
+                        onClick={() => onViewRow(row)}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                      </IconButton>
                     </td>
                   )}
                 </tr>
-                );
-              })}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td
-                  colSpan={totalColumns}
-                  className="bg-surface-muted/80 px-4 py-3 text-center text-body-sm text-content-secondary"
-                >
-                  {footerNote}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td
+                colSpan={totalColumns}
+                className="bg-surface-muted/80 px-4 py-3 text-center text-body-sm text-content-secondary"
+              >
+                {resolvedFooterNote}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
       </div>
     </div>
   );

@@ -8,21 +8,26 @@ import Deployments from './pages/Deployments';
 import Rotation from './pages/Rotation';
 import RotationSchedule from './pages/RotationSchedule';
 import Login from './pages/Login';
+import Profile from './pages/Profile';
 import Layout from './components/Layout';
+import ProtectedRoute from './components/ProtectedRoute';
 
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route element={<Layout />}>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/devices" element={<Devices />} />
-        <Route path="/device-monitoring" element={<DeviceMonitoring />} />
-        <Route path="/content-library" element={<ContentLibrary />} />
-        <Route path="/rotation" element={<Rotation />} />
-        <Route path="/rotation-schedule" element={<RotationSchedule />} />
-        <Route path="/deployments" element={<Deployments />} />
-        <Route path="/locations" element={<Locations />} />
+      <Route element={<ProtectedRoute />}>
+        <Route element={<Layout />}>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/devices" element={<Devices />} />
+          <Route path="/device-monitoring" element={<DeviceMonitoring />} />
+          <Route path="/content-library" element={<ContentLibrary />} />
+          <Route path="/rotation" element={<Rotation />} />
+          <Route path="/rotation-schedule" element={<RotationSchedule />} />
+          <Route path="/deployments" element={<Deployments />} />
+          <Route path="/locations" element={<Locations />} />
+          <Route path="/profile" element={<Profile />} />
+        </Route>
       </Route>
     </Routes>
   );

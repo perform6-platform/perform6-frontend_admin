@@ -1,9 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
-import {
-  mockDeployments,
-  type Deployment,
-  type DeploymentSubmitPayload,
-} from '../constants/deployments';
+import type { Deployment, DeploymentSubmitPayload } from '../constants/deployments';
 import { formatDeploymentTimestamp } from '../lib/deploymentHelpers';
 
 interface DeploymentsContextValue {
@@ -14,7 +10,7 @@ interface DeploymentsContextValue {
 const DeploymentsContext = createContext<DeploymentsContextValue | null>(null);
 
 export function DeploymentsProvider({ children }: { children: ReactNode }) {
-  const [deployments, setDeployments] = useState<Deployment[]>(mockDeployments);
+  const [deployments, setDeployments] = useState<Deployment[]>([]);
 
   const addDeployment = useCallback((payload: DeploymentSubmitPayload) => {
     const startedAt = payload.startedAt || formatDeploymentTimestamp();
@@ -38,8 +34,8 @@ export function DeploymentsProvider({ children }: { children: ReactNode }) {
       deviceName: payload.deviceName,
       connectionStartDate: payload.connectionStartDate,
       brandingMode: payload.brandingMode ?? 'default',
-      brandingLogoUrl: payload.brandingLogoUrl ?? null,
-      companyName: payload.companyName?.trim() || undefined,
+      brandingLogoUrl: payload.brandingLogoUrl,
+      companyName: payload.companyName,
     };
 
     setDeployments((current) => [deployment, ...current]);

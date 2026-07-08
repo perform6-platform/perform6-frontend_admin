@@ -1,16 +1,15 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
-import {
-  mockContentItems,
-  type ContentCategoryId,
-  type ContentItem,
-} from '../constants/contentLibrary';
+import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
+import type { ContentCategoryId, ContentItem } from '../constants/contentLibrary';
 import type { PlaybackCategoryId } from '../constants/contentPlayback';
+import { useMediaAssets } from '../hooks/useMedia';
+import { mapMediaAssetToContentItem } from '../lib/deviceMapper';
 import { getManageableCategoryIds } from '../lib/programHelpers';
 
 interface ContentContextValue {
   items: ContentItem[];
-  addItem: (item: ContentItem) => void;
-  removeItem: (id: string) => void;
+  isLoading: boolean;
+  isError: boolean;
+  refetch: () => void;
   getVideosByCategory: (categoryId: ContentCategoryId) => ContentItem[];
   getVideoCountByCategory: (categoryId: ContentCategoryId) => number;
   getVideosForProgram: (programId: PlaybackCategoryId | ContentCategoryId) => ContentItem[];
@@ -20,15 +19,20 @@ interface ContentContextValue {
 const ContentContext = createContext<ContentContextValue | null>(null);
 
 export function ContentProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<ContentItem[]>(mockContentItems);
+  const { data, isLoading, isError, refetch } = useMediaAssets({
+    status: 'READY',
+    page: 1,
+    limit: 100,
+    sortBy: 'createdAt',
+    sortOrder: 'DESC',
+  });
 
-  const addItem = useCallback((item: ContentItem) => {
-    setItems((current) => [item, ...current]);
-  }, []);
-
-  const removeItem = useCallback((id: string) => {
-    setItems((current) => current.filter((item) => item.id !== id));
-  }, []);
+  const items = useMemo(() => {
+    const assets = data?.items ?? [];
+    return assets
+      .map(mapMediaAssetToContentItem)
+      .filter((item): item is ContentItem => item !== null);
+  }, [data]);
 
   const getVideosByCategory = useCallback(
     (categoryId: ContentCategoryId) =>
@@ -59,14 +63,26 @@ export function ContentProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       items,
-      addItem,
-      removeItem,
+      isLoading,
+      isError,
+      refetch: () => {
+        void refetch();
+      },
       getVideosByCategory,
       getVideoCountByCategory,
       getVideosForProgram,
       getVideoCountForProgram,
     }),
-    [items, addItem, removeItem, getVideosByCategory, getVideoCountByCategory, getVideosForProgram, getVideoCountForProgram],
+    [
+      items,
+      isLoading,
+      isError,
+      refetch,
+      getVideosByCategory,
+      getVideoCountByCategory,
+      getVideosForProgram,
+      getVideoCountForProgram,
+    ],
   );
 
   return <ContentContext.Provider value={value}>{children}</ContentContext.Provider>;

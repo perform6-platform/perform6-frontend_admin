@@ -2,12 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, RefreshCw, Search, XCircle } from 'lucide-react';
 import { DeviceDetailsPanel } from '../components/devices/DeviceDetailsPanel';
 import { AddDeviceModal } from '../components/devices/AddDeviceModal';
-import { EditDeviceModal } from '../components/devices/EditDeviceModal';
 import {
-  ActionMenu,
   Badge,
   Button,
-  ConfirmModal,
   Dropdown,
   IconButton,
   Input,
@@ -16,68 +13,63 @@ import {
   Table,
   type TableColumn,
 } from '../components/ui';
-import {
-  locationOptions,
-  mockDevices,
-  statusOptions,
-  type Device,
-  type DeviceStatus,
-} from '../constants/devices';
+import { statusOptions, type Device } from '../constants/devices';
+import { useToast } from '../context/ToastContext';
+import { useClaimPairing, useDevices } from '../hooks/useDevices';
+import { mapInventoryItem } from '../lib/deviceMapper';
 import { cn } from '../lib/cn';
+import { getApiErrorMessage } from '../services/axios';
+import type { ClaimPairingPayload, DeviceInventoryState } from '../types/devices';
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 20;
 
-const locationFilterMap: Record<string, string> = {
-  'new-york': 'New York Gym',
-  chicago: 'Chicago Gym',
-  dallas: 'Dallas Gym',
-  'los-angeles': 'Los Angeles Gym',
-  miami: 'Miami Gym',
-  boston: 'Boston Gym',
-};
+const fleetFilterOptions = [
+  { value: 'all', label: 'All Devices' },
+  { value: 'registered', label: 'Registered' },
+  { value: 'claimed', label: 'Claimed' },
+  { value: 'pending', label: 'Pending pairing' },
+] as const;
 
 export default function Devices() {
-  const [devices, setDevices] = useState<Device[]>(mockDevices);
+  const { showToast } = useToast();
   const [page, setPage] = useState(1);
-  const [locationFilter, setLocationFilter] = useState('all');
+  const [fleetFilter, setFleetFilter] = useState<DeviceInventoryState>('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [addDeviceOpen, setAddDeviceOpen] = useState(false);
-  const [editDeviceOpen, setEditDeviceOpen] = useState(false);
-  const [editingDevice, setEditingDevice] = useState<Device | null>(null);
-  const [deleteDeviceOpen, setDeleteDeviceOpen] = useState(false);
-  const [deviceToDelete, setDeviceToDelete] = useState<Device | null>(null);
+
+  const { data, isLoading, isError, error, refetch, isFetching } = useDevices({
+    state: fleetFilter,
+    search: search || undefined,
+    page,
+    limit: PAGE_SIZE,
+  });
+
+  const { mutate: claimPairing, isPending: isClaimingDevice } = useClaimPairing();
+
+  const devices = useMemo<Device[]>(() => {
+    const items = data?.items ?? [];
+    return items.map(mapInventoryItem);
+  }, [data]);
 
   const filteredDevices = useMemo(() => {
-    return devices.filter((device) => {
-      const matchesLocation =
-        locationFilter === 'all' || device.location === locationFilterMap[locationFilter];
-      const matchesStatus = statusFilter === 'all' || device.status === statusFilter;
-      const query = search.trim().toLowerCase();
-      const matchesSearch =
-        !query ||
-        device.name.toLowerCase().includes(query) ||
-        device.location.toLowerCase().includes(query);
+    if (statusFilter === 'all') return devices;
+    return devices.filter((device) => device.status === statusFilter);
+  }, [devices, statusFilter]);
 
-      return matchesLocation && matchesStatus && matchesSearch;
-    });
-  }, [devices, locationFilter, statusFilter, search]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredDevices.length / PAGE_SIZE));
+  const counts = data?.meta.counts;
+  const total = data?.meta.total ?? filteredDevices.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
-
-  const paginatedDevices = useMemo(() => {
-    const start = (safePage - 1) * PAGE_SIZE;
-    return filteredDevices.slice(start, start + PAGE_SIZE);
-  }, [filteredDevices, safePage]);
 
   const selectedDevice = useMemo(() => {
     if (selectedDeviceId) {
       return filteredDevices.find((device) => device.id === selectedDeviceId) ?? null;
     }
-    return paginatedDevices[0] ?? filteredDevices[0] ?? null;
-  }, [filteredDevices, paginatedDevices, selectedDeviceId]);
+    return filteredDevices[0] ?? null;
+  }, [filteredDevices, selectedDeviceId]);
 
   useEffect(() => {
     if (selectedDeviceId && !filteredDevices.some((device) => device.id === selectedDeviceId)) {
@@ -85,36 +77,21 @@ export default function Devices() {
     }
   }, [filteredDevices, selectedDeviceId]);
 
-  function handleEditDevice(payload: {
-    id: string;
-    deviceName: string;
-    location: string;
-    currentDay: string;
-    status: DeviceStatus;
-  }) {
-    setDevices((current) =>
-      current.map((device) =>
-        device.id === payload.id
-          ? {
-              ...device,
-              name: payload.deviceName,
-              location: payload.location,
-              currentDay: payload.currentDay,
-              status: payload.status,
-            }
-          : device,
-      ),
-    );
-  }
-
-  function handleDeleteDevice() {
-    if (!deviceToDelete) return;
-
-    setDevices((current) => current.filter((device) => device.id !== deviceToDelete.id));
-
-    if (selectedDeviceId === deviceToDelete.id) {
-      setSelectedDeviceId(null);
-    }
+  function handleAddDevice(payload: ClaimPairingPayload) {
+    claimPairing(payload, {
+      onSuccess: (result) => {
+        setAddDeviceOpen(false);
+        setFleetFilter('claimed');
+        setSelectedDeviceId(result.data.pairingId ?? result.data.id);
+        showToast({ title: result.message || 'Device claimed', variant: 'success' });
+      },
+      onError: (claimError) => {
+        showToast({
+          title: getApiErrorMessage(claimError, 'Failed to claim device'),
+          variant: 'error',
+        });
+      },
+    });
   }
 
   const columns: TableColumn<Device>[] = [
@@ -140,9 +117,9 @@ export default function Devices() {
     },
     {
       key: 'currentDay',
-      header: 'Current Day',
+      header: 'Model',
       hideOnMobile: true,
-      render: (row) => row.currentDay,
+      render: (row) => row.model,
     },
     {
       key: 'brightSignStatus',
@@ -152,7 +129,9 @@ export default function Devices() {
         <span
           className={cn(
             'inline-flex items-center gap-1.5 text-body-sm font-medium',
-            row.brightSignStatus === 'connected' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400',
+            row.brightSignStatus === 'connected'
+              ? 'text-status-success'
+              : 'text-status-danger',
           )}
         >
           {row.brightSignStatus === 'connected' ? (
@@ -176,28 +155,19 @@ export default function Devices() {
       className: 'text-right',
       headerClassName: 'text-right',
       render: (row) => (
-        <div className="flex items-center justify-end gap-1.5" onClick={(event) => event.stopPropagation()}>
-          <IconButton label="Sync device">
-            <RefreshCw className="h-4 w-4 text-current" />
-          </IconButton>
-          <ActionMenu
-            items={[
-              { value: 'edit', label: 'Edit' },
-              { value: 'delete', label: 'Delete', variant: 'danger' },
-            ]}
-            onSelect={(action) => {
+        <div
+          className="flex items-center justify-end gap-1.5"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <IconButton
+            label="Refresh device"
+            onClick={() => {
               setSelectedDeviceId(row.id);
-              if (action === 'edit') {
-                setEditingDevice(row);
-                setEditDeviceOpen(true);
-                return;
-              }
-              if (action === 'delete') {
-                setDeviceToDelete(row);
-                setDeleteDeviceOpen(true);
-              }
+              refetch();
             }}
-          />
+          >
+            <RefreshCw className={cn('h-4 w-4 text-current', isFetching && 'animate-spin')} />
+          </IconButton>
         </div>
       ),
     },
@@ -205,13 +175,23 @@ export default function Devices() {
 
   return (
     <PageShell title="Devices">
+      {counts && (
+        <div className="flex flex-wrap gap-2 text-caption text-content-secondary">
+          <span>Pending: {counts.pending}</span>
+          <span>·</span>
+          <span>Claimed: {counts.claimed}</span>
+          <span>·</span>
+          <span>Registered: {counts.registered}</span>
+        </div>
+      )}
+
       <div className="relative z-20 flex flex-col gap-3 xl:flex-row xl:items-center">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:flex xl:shrink-0 xl:gap-3">
           <Dropdown
-            options={[...locationOptions]}
-            value={locationFilter}
+            options={[...fleetFilterOptions]}
+            value={fleetFilter}
             onChange={(value) => {
-              setLocationFilter(value);
+              setFleetFilter(value as DeviceInventoryState);
               setPage(1);
             }}
             fullWidth
@@ -230,15 +210,29 @@ export default function Devices() {
         </div>
         <Input
           icon={<Search className="h-4 w-4" />}
-          placeholder="Search devices..."
-          value={search}
-          onChange={(event) => {
-            setSearch(event.target.value);
-            setPage(1);
+          placeholder="Search serial / name / model / code..."
+          value={searchInput}
+          onChange={(event) => setSearchInput(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              setSearch(searchInput.trim());
+              setPage(1);
+            }
           }}
           aria-label="Search devices"
           className="min-w-0 w-full xl:flex-1"
         />
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-9 w-full shrink-0 whitespace-nowrap px-4 xl:w-auto"
+          onClick={() => {
+            setSearch(searchInput.trim());
+            setPage(1);
+          }}
+        >
+          Search
+        </Button>
         <Button
           size="sm"
           className="h-9 w-full shrink-0 whitespace-nowrap px-4 xl:ml-auto xl:w-auto"
@@ -248,42 +242,25 @@ export default function Devices() {
         </Button>
       </div>
 
-      <AddDeviceModal open={addDeviceOpen} onClose={() => setAddDeviceOpen(false)} />
-
-      <EditDeviceModal
-        open={editDeviceOpen}
-        device={editingDevice}
-        onClose={() => {
-          setEditDeviceOpen(false);
-          setEditingDevice(null);
-        }}
-        onSubmit={handleEditDevice}
-      />
-
-      <ConfirmModal
-        open={deleteDeviceOpen}
-        onClose={() => {
-          setDeleteDeviceOpen(false);
-          setDeviceToDelete(null);
-        }}
-        onConfirm={handleDeleteDevice}
-        title="Delete device?"
-        description={
-          deviceToDelete
-            ? `Are you sure you want to delete ${deviceToDelete.name}? This action cannot be undone.`
-            : undefined
-        }
-        confirmLabel="Delete"
-        tone="danger"
+      <AddDeviceModal
+        open={addDeviceOpen}
+        onClose={() => setAddDeviceOpen(false)}
+        onSubmit={handleAddDevice}
+        isSubmitting={isClaimingDevice}
       />
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-4">
+          {isError && (
+            <div className="rounded-card border border-status-danger/25 bg-[rgba(234,84,85,0.1)] px-4 py-3 text-body-sm text-status-danger">
+              {getApiErrorMessage(error, 'Failed to load devices')}
+            </div>
+          )}
           <Table
             columns={columns}
-            data={paginatedDevices}
+            data={filteredDevices}
             rowKey={(row) => row.id}
-            emptyMessage="No devices found"
+            emptyMessage={isLoading ? 'Loading devices...' : 'No devices found'}
             selectedRowKey={selectedDevice?.id}
             onRowClick={(row) => setSelectedDeviceId(row.id)}
           />
@@ -291,7 +268,7 @@ export default function Devices() {
           <Pagination
             page={safePage}
             pageSize={PAGE_SIZE}
-            total={filteredDevices.length}
+            total={total}
             onPageChange={setPage}
           />
         </div>

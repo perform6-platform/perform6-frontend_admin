@@ -165,7 +165,7 @@ export default function Programs() {
           </IconButton>
           <IconButton
             label={`Delete ${row.name}`}
-            className="hover:border-red-500/30 hover:text-status-danger"
+            className="hover:border-status-danger/30 hover:text-status-danger"
             onClick={() => {
               setProgramToDelete(row);
               setDeleteProgramOpen(true);
@@ -240,7 +240,7 @@ export default function Programs() {
                   </IconButton>
                   <IconButton
                     label={`Delete ${row.name}`}
-                    className="hover:border-red-500/30 hover:text-status-danger"
+                    className="hover:border-status-danger/30 hover:text-status-danger"
                     onClick={() => {
                       setProgramToDelete(row);
                       setDeleteProgramOpen(true);

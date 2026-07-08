@@ -17,7 +17,7 @@ export function ContentLibraryToolbar({
   onCategoryFilterChange,
 }: ContentLibraryToolbarProps) {
   return (
-    <div className="flex flex-col gap-3 border-b border-surface-border pb-4 xl:flex-row xl:items-center xl:justify-between">
+    <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
       <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 hide-scrollbar sm:flex-wrap sm:overflow-visible sm:pb-0">
         {contentTypeTabs.map((tab) => {
           const isActive = tab.value === activeTab;

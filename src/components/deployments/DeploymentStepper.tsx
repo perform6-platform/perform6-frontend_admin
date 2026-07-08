@@ -1,15 +1,31 @@
 import { cn } from '../../lib/cn';
-import { deploymentSteps } from '../../lib/deploymentHelpers';
+
+const DEFAULT_STEPS = [
+  { id: 1, label: 'Configure' },
+  { id: 2, label: 'Preview' },
+  { id: 3, label: 'Device' },
+  { id: 4, label: 'Deploy' },
+];
 
 export interface DeploymentStepperProps {
   currentStep: number;
+  totalSteps?: number;
   className?: string;
 }
 
-export function DeploymentStepper({ currentStep, className }: DeploymentStepperProps) {
+export function DeploymentStepper({
+  currentStep,
+  totalSteps = DEFAULT_STEPS.length,
+  className,
+}: DeploymentStepperProps) {
+  const steps = DEFAULT_STEPS.slice(0, totalSteps).map((step, index) => ({
+    ...step,
+    id: index + 1,
+  }));
+
   return (
     <ol className={cn('flex flex-wrap items-center gap-2 sm:gap-3', className)}>
-      {deploymentSteps.map((step, index) => {
+      {steps.map((step, index) => {
         const isActive = step.id === currentStep;
         const isComplete = step.id < currentStep;
 
@@ -35,7 +51,7 @@ export function DeploymentStepper({ currentStep, className }: DeploymentStepperP
                 {step.label}
               </span>
             </div>
-            {index < deploymentSteps.length - 1 && (
+            {index < steps.length - 1 && (
               <span className="hidden h-px w-6 bg-surface-border sm:block lg:w-10" aria-hidden="true" />
             )}
           </li>

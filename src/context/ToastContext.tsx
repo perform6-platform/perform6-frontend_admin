@@ -30,22 +30,22 @@ const variantStyles: Record<
   { container: string; icon: string; Icon: typeof CheckCircle2 }
 > = {
   success: {
-    container: 'border-emerald-500/25 bg-emerald-50 dark:bg-emerald-950/40',
-    icon: 'text-emerald-600 dark:text-emerald-400',
+    container: 'border-status-success/25 bg-[rgba(40,199,111,0.1)]',
+    icon: 'text-status-success',
     Icon: CheckCircle2,
   },
   error: {
-    container: 'border-red-500/25 bg-red-50 dark:bg-red-950/40',
-    icon: 'text-red-600 dark:text-red-400',
+    container: 'border-status-danger/25 bg-[rgba(234,84,85,0.1)]',
+    icon: 'text-status-danger',
     Icon: XCircle,
   },
   warning: {
-    container: 'border-amber-500/25 bg-amber-50 dark:bg-amber-950/40',
-    icon: 'text-amber-600 dark:text-amber-400',
+    container: 'border-status-warning/25 bg-[rgba(255,159,67,0.1)]',
+    icon: 'text-status-warning',
     Icon: TriangleAlert,
   },
   info: {
-    container: 'border-brand-500/25 bg-brand-50 dark:bg-brand-950/40',
+    container: 'border-brand-500/25 bg-brand-50 dark:bg-brand-900/40',
     icon: 'text-brand-600 dark:text-brand-400',
     Icon: Info,
   },

@@ -107,7 +107,7 @@ export default function Locations() {
           </IconButton>
           <IconButton
             label={`Delete ${row.name}`}
-            className="hover:border-red-500/30 hover:text-status-danger"
+            className="hover:border-status-danger/30 hover:text-status-danger"
             onClick={() => {
               setLocationToDelete(row);
               setDeleteLocationOpen(true);

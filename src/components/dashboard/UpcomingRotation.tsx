@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import type { RotationScheduleRow } from '../../constants/rotationSchedule';
 import { currentRotationDay } from '../../constants/rotationSchedule';
 import { useRotationSchedule } from '../../context/RotationScheduleContext';
+import { useGlobalRotation } from '../../hooks/useRotation';
+import { mapGlobalRotationToScheduleRow } from '../../lib/rotationMapper';
 import { cn } from '../../lib/cn';
 import { Button } from '../ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
@@ -19,11 +21,11 @@ interface RotationItem {
 }
 
 const accentStyles: Record<RotationAccent, string> = {
-  slate: 'bg-gradient-to-br from-slate-500 to-slate-700',
+  slate: 'bg-gradient-to-br from-p6-gray-700 to-p6-gray-900',
   blue: 'bg-gradient-to-br from-brand-500 to-brand-600',
-  teal: 'bg-gradient-to-br from-emerald-400 to-emerald-600',
-  purple: 'bg-gradient-to-br from-violet-500 to-violet-600',
-  gold: 'bg-gradient-to-br from-amber-500 to-amber-600',
+  teal: 'bg-gradient-to-br from-p6-golf-text to-[#1f4a30]',
+  purple: 'bg-gradient-to-br from-brand-600 to-brand-900',
+  gold: 'bg-gradient-to-br from-status-warning to-[#e8892e]',
 };
 
 function buildUpcomingItems(row: RotationScheduleRow | undefined): RotationItem[] {
@@ -48,18 +50,30 @@ export interface UpcomingRotationCardProps {
   day?: number;
 }
 
-export function UpcomingRotationCard({ day = currentRotationDay }: UpcomingRotationCardProps) {
+export function UpcomingRotationCard({ day }: UpcomingRotationCardProps) {
   const navigate = useNavigate();
-  const { getRowByDay } = useRotationSchedule();
-  const row = getRowByDay(day);
+  const { getRowByDay, isLoading: isScheduleLoading } = useRotationSchedule();
+  const { data: globalRotation, isLoading: isCurrentLoading } = useGlobalRotation();
+
+  const rotationDay = day ?? globalRotation?.rotationDay ?? currentRotationDay;
+  const row = useMemo(() => {
+    if (globalRotation && !day) {
+      return mapGlobalRotationToScheduleRow(globalRotation, rotationDay);
+    }
+    return getRowByDay(rotationDay);
+  }, [day, getRowByDay, globalRotation, rotationDay]);
+
   const items = useMemo(() => buildUpcomingItems(row), [row]);
+  const isLoading = isScheduleLoading || isCurrentLoading;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Upcoming Rotation</CardTitle>
         <div className="mt-2">
-          <p className="text-xl font-bold text-content-primary sm:text-2xl">DAY {day}</p>
+          <p className="text-xl font-bold text-content-primary sm:text-2xl">
+            {isLoading ? '…' : `DAY ${rotationDay}`}
+          </p>
           <p className="text-caption text-content-muted">{row?.dateLabel ?? '—'}</p>
         </div>
       </CardHeader>
