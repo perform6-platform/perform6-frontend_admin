@@ -2,7 +2,6 @@ import { Monitor, Wifi, WifiOff } from 'lucide-react';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DonutChart } from '../components/dashboard/Charts';
-import { UpcomingRotationCard } from '../components/dashboard/UpcomingRotation';
 import { quickActions } from '../constants/navigation';
 import { useFleetStatus } from '../hooks/useMonitoring';
 import { cn } from '../lib/cn';
@@ -94,14 +93,30 @@ export default function Dashboard() {
       </section>
 
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Device Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DonutChart segments={deviceStatusSegments} />
-          </CardContent>
-        </Card>
+        <div className="flex flex-col gap-4">
+          <Card className="h-fit">
+            <CardHeader>
+              <CardTitle>Device Status</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DonutChart segments={deviceStatusSegments} />
+            </CardContent>
+          </Card>
+
+          <section>
+            <SectionLabel className="mb-3 block">Quick Actions</SectionLabel>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {quickActions.map(({ label, icon: Icon }) => (
+                <QuickActionButton
+                  key={label}
+                  label={label}
+                  icon={<Icon className="h-4 w-4" />}
+                  onClick={() => handleQuickAction(label)}
+                />
+              ))}
+            </div>
+          </section>
+        </div>
 
         <Card>
           <CardHeader>
@@ -111,7 +126,7 @@ export default function Dashboard() {
             {recentActivity.length === 0 ? (
               <p className="py-6 text-center text-body-sm text-content-muted">No recent activity</p>
             ) : (
-              <ul>
+              <ul className="activity-scroll max-h-[min(70vh,480px)] overflow-y-auto overscroll-contain pr-1">
                 {recentActivity.map((item, index) => (
                   <li
                     key={`${item.device}-${item.time}`}
@@ -134,22 +149,6 @@ export default function Dashboard() {
             )}
           </CardContent>
         </Card>
-
-        <UpcomingRotationCard />
-
-        <section>
-          <SectionLabel className="mb-3 block">Quick Actions</SectionLabel>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {quickActions.map(({ label, icon: Icon }) => (
-              <QuickActionButton
-                key={label}
-                label={label}
-                icon={<Icon className="h-4 w-4" />}
-                onClick={() => handleQuickAction(label)}
-              />
-            ))}
-          </div>
-        </section>
       </section>
     </PageShell>
   );
