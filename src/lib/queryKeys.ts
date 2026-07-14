@@ -18,6 +18,8 @@ export const queryKeys = {
       ['devices', 'pairing', code, strict] as const,
   },
   deployments: {
+    all: ['deployments'] as const,
+    list: (query: unknown) => ['deployments', 'list', query] as const,
     types: ['deployments', 'types'] as const,
     categories: ['deployments', 'categories'] as const,
     variants: (categoryId: string) => ['deployments', 'categories', categoryId, 'variants'] as const,

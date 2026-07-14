@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Upload } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { CategorySidebar } from '../components/content-library/CategorySidebar';
@@ -14,9 +14,14 @@ import type { ContentCategoryId, ContentItem, ContentTypeFilter } from '../const
 import { getFullCategoryLabel } from '../constants/contentPlayback';
 import { useContent } from '../context/ContentContext';
 import { useToast } from '../context/ToastContext';
-import { useDeleteMedia, useUploadMedia } from '../hooks/useMedia';
+import { useDeleteMedia, useMediaAsset, useUploadMedia } from '../hooks/useMedia';
+import { useSmoothUploadProgress } from '../hooks/useSmoothUploadProgress';
 import { categoryToLibraryType } from '../lib/libraryType';
 import { getApiErrorMessage } from '../services/axios';
+import { getMediaProcessingProgress } from '../services/media.api';
+import { useQueryClient } from '@tanstack/react-query';
+import type { MediaListResult } from '../types/media';
+import { queryKeys } from '../lib/queryKeys';
 
 function readVideoDurationSeconds(file: File): Promise<number | undefined> {
   return new Promise((resolve) => {
@@ -41,8 +46,21 @@ export default function ContentLibrary() {
   const navigate = useNavigate();
   const { items, isLoading, isError, refetch } = useContent();
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
   const { mutate: deleteMedia, isPending: isDeleting } = useDeleteMedia();
-  const { mutateAsync: uploadMedia, isPending: isUploading } = useUploadMedia();
+  const { mutateAsync: uploadMedia } = useUploadMedia();
+  const {
+    progress,
+    start,
+    setHttpUploadPercent,
+    markUploadReceived,
+    setProcessingJobPercent,
+    complete,
+    waitUntilDone,
+    fail,
+    reset,
+  } = useSmoothUploadProgress();
+
   const [activeTab, setActiveTab] = useState<ContentTypeFilter>('all');
   const [activeCategory, setActiveCategory] = useState<ContentCategoryId>('default-fitness');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -50,6 +68,16 @@ export default function ContentLibrary() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [playingItem, setPlayingItem] = useState<ContentItem | null>(null);
   const [itemToDelete, setItemToDelete] = useState<ContentItem | null>(null);
+  const [processingAssetId, setProcessingAssetId] = useState<string | null>(null);
+  const [processingJobId, setProcessingJobId] = useState<string | null>(null);
+  const finishingRef = useRef(false);
+
+  const processingQuery = useMediaAsset(processingAssetId, {
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status === 'PROCESSING' ? 2000 : false;
+    },
+  });
 
   useEffect(() => {
     const state = location.state as { openUpload?: boolean; categoryId?: ContentCategoryId } | null;
@@ -63,6 +91,109 @@ export default function ContentLibrary() {
       navigate(location.pathname, { replace: true, state: null });
     }
   }, [location.pathname, location.state, navigate]);
+
+  // Poll BullMQ job progress for gradual 55→99% while processing.
+  useEffect(() => {
+    if (!processingJobId || progress.phase !== 'processing') return;
+
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const result = await getMediaProcessingProgress(processingJobId);
+        if (cancelled) return;
+        setProcessingJobPercent(result.progress);
+        if (result.state === 'completed') {
+          setProcessingJobPercent(100);
+        }
+        if (result.state === 'failed') {
+          fail('Processing failed');
+          setProcessingJobId(null);
+          setProcessingAssetId(null);
+        }
+      } catch {
+        // Keep animating via asset status poll if job endpoint briefly fails.
+      }
+    };
+
+    void poll();
+    const timer = window.setInterval(() => {
+      void poll();
+    }, 900);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [
+    processingJobId,
+    progress.phase,
+    setProcessingJobPercent,
+    fail,
+  ]);
+
+  useEffect(() => {
+    if (!processingAssetId || !processingQuery.data || finishingRef.current) return;
+
+    const status = processingQuery.data.status;
+    if (status === 'READY') {
+      finishingRef.current = true;
+      const readyAsset = processingQuery.data;
+      setProcessingJobPercent(100);
+      complete();
+
+      // Immediately patch library cache so the real thumbnail shows without a manual refresh.
+      queryClient.setQueriesData(
+        { queryKey: queryKeys.media.all },
+        (current: MediaListResult | undefined) => {
+          if (!current?.items) return current;
+          return {
+            ...current,
+            items: current.items.map((asset) =>
+              asset.id === readyAsset.id ? { ...asset, ...readyAsset } : asset,
+            ),
+          };
+        },
+      );
+
+      void (async () => {
+        await waitUntilDone();
+        setProcessingAssetId(null);
+        setProcessingJobId(null);
+        await queryClient.invalidateQueries({ queryKey: queryKeys.media.all });
+        await refetch();
+        showToast({
+          title: 'Video uploaded',
+          message: `"${readyAsset.title}" is ready in the library.`,
+          variant: 'success',
+        });
+        finishingRef.current = false;
+      })();
+      return;
+    }
+
+    if (status === 'FAILED') {
+      fail('Processing failed');
+      setProcessingAssetId(null);
+      setProcessingJobId(null);
+      refetch();
+      showToast({
+        title: 'Processing failed',
+        message: `"${processingQuery.data.title}" could not be processed for BrightSign.`,
+        variant: 'error',
+      });
+    }
+  }, [
+    processingAssetId,
+    processingQuery.data,
+    complete,
+    fail,
+    setProcessingJobPercent,
+    waitUntilDone,
+    refetch,
+    showToast,
+    queryClient,
+  ]);
 
   const filteredItems = useMemo(() => {
     let result = items.filter((item) => item.categoryId === activeCategory);
@@ -82,6 +213,8 @@ export default function ContentLibrary() {
   }, [items, activeTab, activeCategory, categoryFilter]);
 
   async function handleUpload(payload: UploadContentPayload) {
+    finishingRef.current = false;
+    start();
     try {
       const durationSeconds = await readVideoDurationSeconds(payload.file);
       const result = await uploadMedia({
@@ -91,25 +224,57 @@ export default function ContentLibrary() {
         thumbnail: payload.thumbnail,
         mediaType: 'VIDEO',
         durationSeconds,
+        onUploadProgress: (percent) => {
+          setHttpUploadPercent(percent);
+        },
       });
+
+      // Ensure transfer portion finishes smoothly even if browser skipped events.
+      setHttpUploadPercent(100);
+      markUploadReceived();
 
       setActiveCategory(payload.categoryId);
       setActiveTab('all');
       setSelectedId(result.asset.id);
-      setUploadOpen(false);
+      setProcessingAssetId(result.asset.id);
+      if (result.processingJobId) {
+        setProcessingJobId(result.processingJobId);
+      }
       refetch();
-      showToast({
-        title: 'Video uploaded',
-        message: `"${result.asset.title}" has been uploaded to ${getFullCategoryLabel(payload.categoryId)}.`,
-        variant: 'success',
-      });
+
+      if (result.asset.status === 'READY') {
+        finishingRef.current = true;
+        setProcessingJobPercent(100);
+        complete();
+        await waitUntilDone();
+        setProcessingAssetId(null);
+        setProcessingJobId(null);
+        showToast({
+          title: 'Video uploaded',
+          message: `"${result.asset.title}" is ready in ${getFullCategoryLabel(payload.categoryId)}.`,
+          variant: 'success',
+        });
+        finishingRef.current = false;
+      }
     } catch (error) {
+      fail('Upload failed');
+      setProcessingAssetId(null);
+      setProcessingJobId(null);
       showToast({
         title: getApiErrorMessage(error, 'Failed to upload video'),
         variant: 'error',
       });
       throw error;
     }
+  }
+
+  function handleCloseUpload() {
+    if (progress.phase === 'uploading' || progress.phase === 'processing') return;
+    setUploadOpen(false);
+    reset();
+    setProcessingAssetId(null);
+    setProcessingJobId(null);
+    finishingRef.current = false;
   }
 
   function handleDeleteConfirm() {
@@ -140,6 +305,9 @@ export default function ContentLibrary() {
     });
   }
 
+  const isBusy =
+    progress.phase === 'uploading' || progress.phase === 'processing';
+
   return (
     <>
       <div className="space-y-4 sm:space-y-6">
@@ -148,8 +316,14 @@ export default function ContentLibrary() {
           <Button
             size="sm"
             className="h-9 w-full shrink-0 gap-2 whitespace-nowrap px-4 sm:w-auto"
-            onClick={() => setUploadOpen(true)}
-            disabled={isUploading}
+            onClick={() => {
+              reset();
+              setProcessingAssetId(null);
+              setProcessingJobId(null);
+              finishingRef.current = false;
+              setUploadOpen(true);
+            }}
+            disabled={isBusy}
           >
             <Upload className="h-4 w-4" />
             Upload video
@@ -200,8 +374,9 @@ export default function ContentLibrary() {
       <UploadContentModal
         open={uploadOpen}
         defaultCategoryId={activeCategory}
-        onClose={() => setUploadOpen(false)}
+        onClose={handleCloseUpload}
         onSubmit={handleUpload}
+        progress={progress}
       />
 
       <ContentVideoPlayerModal

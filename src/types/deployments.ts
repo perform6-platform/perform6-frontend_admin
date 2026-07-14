@@ -230,13 +230,54 @@ export interface RuntimeManifestResult {
 
 export interface DeploymentEntity {
   id: string;
+  name?: string;
+  description?: string | null;
   deploymentType: string;
   fieldCategory: string;
   exerciseVariant: string;
   rotationStartDate?: string | null;
-  devices?: unknown[];
+  config?: Record<string, unknown>;
+  devices?: Array<{
+    id: string;
+    rotationStartDate?: string | null;
+    [key: string]: unknown;
+  }>;
   branding?: unknown[];
+  createdAt?: string;
+  updatedAt?: string;
   [key: string]: unknown;
+}
+
+export interface ListDeploymentsQuery {
+  page?: number;
+  limit?: number;
+  deploymentType?: string;
+  fieldCategory?: string;
+  exerciseVariant?: string;
+  search?: string;
+}
+
+export interface DeploymentListMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+export interface DeploymentListResult {
+  items: DeploymentEntity[];
+  meta: DeploymentListMeta;
+}
+
+export interface UpdateDeploymentPayload {
+  name?: string;
+  description?: string;
+  fieldCategory?: string;
+  exerciseVariant?: string;
+  brandingMode?: BrandingMode;
+  brandingId?: string;
 }
 
 // ---------------------------------------------------------------------------

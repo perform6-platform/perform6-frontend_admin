@@ -26,7 +26,27 @@ export async function uploadMedia(payload: UploadMediaPayload): Promise<MediaUpl
   });
   const { data } = await apiClient.post<ApiResponse<MediaUploadResult>>('/media/upload', form, {
     headers: MULTIPART_HEADERS,
+    onUploadProgress: (event) => {
+      if (!payload.onUploadProgress) return;
+      const total = event.total ?? payload.file.size;
+      if (!total) {
+        payload.onUploadProgress(0);
+        return;
+      }
+      const percent = Math.min(100, Math.round((event.loaded / total) * 100));
+      payload.onUploadProgress(percent);
+    },
   });
+  return data.data;
+}
+
+/** GET /media/processing/:jobId — BullMQ progress 0–100. */
+export async function getMediaProcessingProgress(
+  jobId: string,
+): Promise<{ jobId: string; progress: number; state: string }> {
+  const { data } = await apiClient.get<
+    ApiResponse<{ jobId: string; progress: number; state: string }>
+  >(`/media/processing/${encodeURIComponent(jobId)}`);
   return data.data;
 }
 

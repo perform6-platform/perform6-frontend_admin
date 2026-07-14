@@ -115,6 +115,15 @@ export function mapMediaAssetToContentItem(asset: MediaAsset): ContentItem | nul
         ? 'video'
         : 'video';
 
+  const resolvedThumb =
+    resolveStorageUrl(asset.thumbnailUrl) ??
+    (asset.status === 'READY' ? resolveStorageUrl(activeVersion?.fileUrl) : null);
+
+  // Bust browser cache when asset updates after processing finishes.
+  const thumbnailUrl = resolvedThumb
+    ? `${resolvedThumb}${resolvedThumb.includes('?') ? '&' : '?'}v=${encodeURIComponent(asset.updatedAt ?? asset.id)}`
+    : defaultContentThumbnail;
+
   return {
     id: asset.id,
     title: asset.title,
@@ -123,12 +132,14 @@ export function mapMediaAssetToContentItem(asset: MediaAsset): ContentItem | nul
     duration: formatDuration(asset.durationSeconds),
     dateLabel: asset.createdAt ? format(new Date(asset.createdAt), 'd MMM yyyy') : '—',
     format: activeVersion?.codec?.toUpperCase() ?? 'MP4',
-    thumbnailUrl:
-      resolveStorageUrl(asset.thumbnailUrl) ??
-      resolveStorageUrl(activeVersion?.fileUrl) ??
-      defaultContentThumbnail,
-    videoUrl: resolveStorageUrl(activeVersion?.fileUrl) ?? undefined,
+    thumbnailUrl,
+    videoUrl:
+      asset.status === 'READY'
+        ? resolveStorageUrl(activeVersion?.fileUrl) ?? undefined
+        : undefined,
     mediaVersionId: activeVersion?.id,
     libraryType: asset.libraryType ?? undefined,
+    status: asset.status,
+    updatedAt: asset.updatedAt,
   };
 }

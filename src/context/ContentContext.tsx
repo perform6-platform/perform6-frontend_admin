@@ -9,7 +9,7 @@ interface ContentContextValue {
   items: ContentItem[];
   isLoading: boolean;
   isError: boolean;
-  refetch: () => void;
+  refetch: () => Promise<void>;
   getVideosByCategory: (categoryId: ContentCategoryId) => ContentItem[];
   getVideoCountByCategory: (categoryId: ContentCategoryId) => number;
   getVideosForProgram: (programId: PlaybackCategoryId | ContentCategoryId) => ContentItem[];
@@ -18,13 +18,24 @@ interface ContentContextValue {
 
 const ContentContext = createContext<ContentContextValue | null>(null);
 
+function isReadyVideo(item: ContentItem): boolean {
+  return item.mediaType === 'video' && (!item.status || item.status === 'READY');
+}
+
+const MEDIA_LIST_QUERY = {
+  page: 1,
+  limit: 100,
+  sortBy: 'createdAt',
+  sortOrder: 'DESC' as const,
+};
+
 export function ContentProvider({ children }: { children: ReactNode }) {
-  const { data, isLoading, isError, refetch } = useMediaAssets({
-    status: 'READY',
-    page: 1,
-    limit: 100,
-    sortBy: 'createdAt',
-    sortOrder: 'DESC',
+  const { data, isLoading, isError, refetch } = useMediaAssets(MEDIA_LIST_QUERY, {
+    refetchInterval: (query) => {
+      const items = query.state.data?.items ?? [];
+      const processing = items.some((asset) => asset.status === 'PROCESSING');
+      return processing ? 3000 : false;
+    },
   });
 
   const items = useMemo(() => {
@@ -36,7 +47,7 @@ export function ContentProvider({ children }: { children: ReactNode }) {
 
   const getVideosByCategory = useCallback(
     (categoryId: ContentCategoryId) =>
-      items.filter((item) => item.categoryId === categoryId && item.mediaType === 'video'),
+      items.filter((item) => item.categoryId === categoryId && isReadyVideo(item)),
     [items],
   );
 
@@ -49,7 +60,7 @@ export function ContentProvider({ children }: { children: ReactNode }) {
     (programId: PlaybackCategoryId | ContentCategoryId) => {
       const categoryIds = getManageableCategoryIds(programId);
       return items.filter(
-        (item) => categoryIds.includes(item.categoryId) && item.mediaType === 'video',
+        (item) => categoryIds.includes(item.categoryId) && isReadyVideo(item),
       );
     },
     [items],
@@ -65,8 +76,8 @@ export function ContentProvider({ children }: { children: ReactNode }) {
       items,
       isLoading,
       isError,
-      refetch: () => {
-        void refetch();
+      refetch: async () => {
+        await refetch();
       },
       getVideosByCategory,
       getVideoCountByCategory,

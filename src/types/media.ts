@@ -1,5 +1,5 @@
 export type MediaType = 'VIDEO' | 'IMAGE' | 'AUDIO' | string;
-export type MediaStatus = 'READY' | 'PROCESSING' | 'ARCHIVED' | string;
+export type MediaStatus = 'READY' | 'PROCESSING' | 'FAILED' | 'ARCHIVED' | string;
 
 /** Required on POST /media/upload and filterable on GET /media. */
 export type LibraryType =
@@ -43,6 +43,8 @@ export interface MediaVersion {
 export interface MediaUploadResult {
   asset: MediaAsset;
   version: MediaVersion;
+  libraryType?: LibraryType;
+  processingJobId?: string;
 }
 
 export interface UploadMediaPayload {
@@ -55,6 +57,13 @@ export interface UploadMediaPayload {
   durationSeconds?: number;
   resolution?: string;
   codec?: string;
+  /** Axios upload progress 0–100 for HTTP transfer phase. */
+  onUploadProgress?: (percent: number) => void;
+}
+
+export interface MediaListResult {
+  items: MediaAsset[];
+  meta?: MediaListMeta;
 }
 
 export interface UpdateMediaPayload {

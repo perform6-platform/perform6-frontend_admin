@@ -20,6 +20,9 @@ export interface ContentItem {
   /** Active media version id from API — required for POST /rotation. */
   mediaVersionId?: string;
   libraryType?: string;
+  /** Backend media workflow status. */
+  status?: 'READY' | 'PROCESSING' | 'FAILED' | 'ARCHIVED' | string;
+  updatedAt?: string;
 }
 
 export const defaultContentThumbnail =

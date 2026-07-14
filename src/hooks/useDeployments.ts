@@ -7,22 +7,47 @@ import {
   getDeploymentBranding,
   getDeploymentCategories,
   getDeploymentPreview,
+  getDeployments,
   getDeploymentScheduleTable,
   getDeploymentTypes,
   getHardwareProfiles,
   getRuntimeManifest,
   getScreenAssignments,
   registerDeployment,
+  updateDeployment,
   updateScreenAssignment,
 } from '../services/deployments.api';
 import type {
   CreateScreenAssignmentPayload,
   DeploymentPreviewQuery,
   DeploymentScheduleTableQuery,
+  ListDeploymentsQuery,
   RegisterDeploymentPayload,
   RuntimeManifestQuery,
+  UpdateDeploymentPayload,
   UpdateScreenAssignmentPayload,
 } from '../types/deployments';
+
+/** GET /deployments */
+export function useDeploymentsList(query: ListDeploymentsQuery = {}) {
+  return useQuery({
+    queryKey: queryKeys.deployments.list(query),
+    queryFn: () => getDeployments(query),
+  });
+}
+
+/** PATCH /deployments/:id */
+export function useUpdateDeployment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { id: string; payload: UpdateDeploymentPayload }) =>
+      updateDeployment(vars.id, vars.payload),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.deployments.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.deployments.detail(vars.id) });
+    },
+  });
+}
 
 /** GET /deployments/types */
 export function useDeploymentTypes() {
@@ -116,6 +141,7 @@ export function useRegisterDeployment() {
     mutationFn: (payload: RegisterDeploymentPayload) => registerDeployment(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['devices'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.deployments.all });
     },
   });
 }

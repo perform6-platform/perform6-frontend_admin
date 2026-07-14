@@ -4,6 +4,7 @@ import type {
   CategoryOption,
   CreateScreenAssignmentPayload,
   DeploymentEntity,
+  DeploymentListResult,
   DeploymentPreview,
   DeploymentPreviewQuery,
   DeploymentScheduleTable,
@@ -11,16 +12,40 @@ import type {
   DeploymentTypeOption,
   HardwareBindingPayload,
   HardwareProfile,
+  ListDeploymentsQuery,
   RegisterDeploymentPayload,
   RegisterDeploymentResult,
   RuntimeManifestQuery,
   RuntimeManifestResult,
   ScreenAssignment,
+  UpdateDeploymentPayload,
   UpdateScreenAssignmentPayload,
   VariantOption,
 } from '../types/deployments';
 import { normalizeDeploymentScheduleTable } from '../lib/scheduleTable';
 import { apiClient } from './axios';
+
+/** GET /deployments — paginated fleet list. */
+export async function getDeployments(
+  query: ListDeploymentsQuery = {},
+): Promise<DeploymentListResult> {
+  const { data } = await apiClient.get<ApiResponse<DeploymentListResult>>('/deployments', {
+    params: query,
+  });
+  return data.data;
+}
+
+/** PATCH /deployments/:id */
+export async function updateDeployment(
+  id: string,
+  payload: UpdateDeploymentPayload,
+): Promise<DeploymentEntity> {
+  const { data } = await apiClient.patch<ApiResponse<DeploymentEntity>>(
+    `/deployments/${id}`,
+    payload,
+  );
+  return data.data;
+}
 
 /** GET /deployments/types */
 export async function getDeploymentTypes(): Promise<DeploymentTypeOption[]> {

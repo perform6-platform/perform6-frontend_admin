@@ -1,10 +1,16 @@
 import { CalendarDays } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { DeploymentsList } from '../components/deployments/DeploymentsList';
 import { NewDeploymentForm } from '../components/deployments/NewDeploymentForm';
 import { Button, PageTitle } from '../components/ui';
+import { useToast } from '../context/ToastContext';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '../lib/queryKeys';
 
 export default function Deployments() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
+  const queryClient = useQueryClient();
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -27,7 +33,14 @@ export default function Deployments() {
         </Button>
       </div>
 
-      <NewDeploymentForm />
+      <NewDeploymentForm
+        onSuccess={(message) => {
+          showToast({ title: message || 'Deployment registered', variant: 'success' });
+          void queryClient.invalidateQueries({ queryKey: queryKeys.deployments.all });
+        }}
+      />
+
+      <DeploymentsList />
     </div>
   );
 }

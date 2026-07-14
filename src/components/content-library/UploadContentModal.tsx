@@ -6,6 +6,10 @@ import {
   UploadContentForm,
   type UploadContentPayload,
 } from './UploadContentForm';
+import {
+  UploadProgressPanel,
+  type UploadProgressState,
+} from './UploadProgressPanel';
 
 const UPLOAD_FORM_ID = 'upload-content-modal-form';
 
@@ -14,6 +18,7 @@ export interface UploadContentModalProps {
   defaultCategoryId?: ContentCategoryId;
   onClose: () => void;
   onSubmit?: (payload: UploadContentPayload) => void | Promise<void>;
+  progress?: UploadProgressState;
 }
 
 export function UploadContentModal({
@@ -21,10 +26,12 @@ export function UploadContentModal({
   defaultCategoryId = 'default-fitness',
   onClose,
   onSubmit,
+  progress = { phase: 'idle', percent: 0 },
 }: UploadContentModalProps) {
   const [canSubmit, setCanSubmit] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const categoryLabel = getFullCategoryLabel(defaultCategoryId);
+  const busy = isSubmitting || progress.phase === 'uploading' || progress.phase === 'processing';
 
   useEffect(() => {
     if (!open) {
@@ -35,15 +42,15 @@ export function UploadContentModal({
 
   async function handleSubmit(payload: UploadContentPayload) {
     await onSubmit?.(payload);
-    onClose();
   }
 
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={busy ? () => undefined : onClose}
       title="Upload video"
       description={`Upload to ${categoryLabel}`}
+      hideCloseButton={busy}
       footer={
         <>
           <Button
@@ -52,34 +59,46 @@ export function UploadContentModal({
             size="sm"
             className="h-9 px-4"
             onClick={onClose}
-            disabled={isSubmitting}
+            disabled={busy}
           >
-            Cancel
+            {progress.phase === 'done' ? 'Close' : 'Cancel'}
           </Button>
-          <Button
-            type="submit"
-            form={UPLOAD_FORM_ID}
-            size="sm"
-            className="h-9 px-4"
-            disabled={!canSubmit || isSubmitting}
-          >
-            {isSubmitting ? 'Uploading…' : 'Upload video'}
-          </Button>
+          {progress.phase !== 'done' && (
+            <Button
+              type="submit"
+              form={UPLOAD_FORM_ID}
+              size="sm"
+              className="h-9 px-4"
+              disabled={!canSubmit || busy}
+            >
+              {busy ? 'Uploading…' : 'Upload video'}
+            </Button>
+          )}
         </>
       }
     >
       <ModalBody>
         {open && (
-          <UploadContentForm
-            key={defaultCategoryId}
-            categoryId={defaultCategoryId}
-            embedded
-            formId={UPLOAD_FORM_ID}
-            onCancel={onClose}
-            onSubmit={handleSubmit}
-            onReadyChange={setCanSubmit}
-            onSubmittingChange={setIsSubmitting}
-          />
+          <div className="space-y-4">
+            {progress.phase !== 'idle' && <UploadProgressPanel state={progress} />}
+            {!busy && progress.phase !== 'done' && (
+              <UploadContentForm
+                key={defaultCategoryId}
+                categoryId={defaultCategoryId}
+                embedded
+                formId={UPLOAD_FORM_ID}
+                onCancel={onClose}
+                onSubmit={handleSubmit}
+                onReadyChange={setCanSubmit}
+                onSubmittingChange={setIsSubmitting}
+              />
+            )}
+            {busy && (
+              <p className="text-center text-caption text-content-muted">
+                Please keep this window open until the bar reaches 100%.
+              </p>
+            )}
+          </div>
         )}
       </ModalBody>
     </Modal>

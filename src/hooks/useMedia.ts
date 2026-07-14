@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from '@tanstack/react-query';
 import { queryKeys } from '../lib/queryKeys';
 import {
   deleteMediaAsset,
@@ -8,13 +8,30 @@ import {
   updateMediaAsset,
   uploadMedia,
 } from '../services/media.api';
-import type { MediaListQuery, UpdateMediaPayload, UploadMediaPayload } from '../types/media';
+import type {
+  MediaAsset,
+  MediaListQuery,
+  MediaListResult,
+  UpdateMediaPayload,
+  UploadMediaPayload,
+} from '../types/media';
+
+type MediaListOptions = Omit<
+  UseQueryOptions<MediaListResult, Error, MediaListResult, ReturnType<typeof queryKeys.media.list>>,
+  'queryKey' | 'queryFn'
+>;
+
+type MediaDetailOptions = Omit<
+  UseQueryOptions<MediaAsset, Error, MediaAsset, ReturnType<typeof queryKeys.media.detail>>,
+  'queryKey' | 'queryFn' | 'enabled'
+>;
 
 /** GET /media?libraryType=&status=&page=&limit= */
-export function useMediaAssets(query: MediaListQuery = {}) {
+export function useMediaAssets(query: MediaListQuery = {}, options?: MediaListOptions) {
   return useQuery({
     queryKey: queryKeys.media.list(query),
     queryFn: () => getMediaAssets(query),
+    ...options,
   });
 }
 
@@ -27,11 +44,12 @@ export function useLibrarySummary() {
 }
 
 /** GET /media/:id */
-export function useMediaAsset(id: string | null) {
+export function useMediaAsset(id: string | null, options?: MediaDetailOptions) {
   return useQuery({
     queryKey: queryKeys.media.detail(id ?? ''),
     queryFn: () => getMediaAsset(id as string),
     enabled: Boolean(id),
+    ...options,
   });
 }
 

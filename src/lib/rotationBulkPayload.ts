@@ -22,7 +22,10 @@ function findMediaVersionId(
   videoTitle: string,
 ): string | null {
   const item = items.find(
-    (entry) => entry.categoryId === categoryId && entry.title === videoTitle,
+    (entry) =>
+      entry.categoryId === categoryId &&
+      entry.title === videoTitle &&
+      (!entry.status || entry.status === 'READY'),
   );
   return item?.mediaVersionId ?? null;
 }

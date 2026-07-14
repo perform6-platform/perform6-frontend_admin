@@ -33,6 +33,14 @@ export function libraryTypeToCategory(libraryType: string | null | undefined): C
 
 export function resolveStorageUrl(path: string | null | undefined): string | null {
   if (!path) return null;
+  // Multer incoming placeholders / local absolute paths are not browser-loadable.
+  if (
+    path.startsWith('file:') ||
+    path.includes('/incoming/') ||
+    path.includes('\\incoming\\')
+  ) {
+    return null;
+  }
   if (/^https?:\/\//i.test(path) || path.startsWith('blob:') || path.startsWith('data:')) {
     return path;
   }
