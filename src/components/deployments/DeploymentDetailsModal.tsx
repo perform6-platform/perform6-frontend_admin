@@ -1,91 +1,72 @@
 import { useMemo } from 'react';
-import type { Deployment } from '../../constants/deployments';
-import {
-  getDeploymentStatusLabel,
-  getDeploymentStatusVariant,
-} from '../../constants/deployments';
-import { getFullCategoryLabel, getPlaybackCategoryForContent } from '../../constants/contentPlayback';
-import {
-  getContentTrackFromCategoryId,
-  getContentTrackLabel,
-  getDeploymentModeLabel,
-  getExerciseVariationFromCategoryId,
-  getExerciseVariationLabel,
-  usesRotationForPlayback,
-} from '../../lib/deploymentHelpers';
-import { enrichDeploymentDetails } from '../../lib/deploymentDetails';
-import { formatDateLabel } from '../../lib/formatDateLabel';
-import {
-  getDeploymentBrandingLabel,
-  resolveDeploymentBranding,
-} from '../../constants/branding';
+import { useDeployment } from '../../hooks/useDeployments';
 import { cn } from '../../lib/cn';
+import { resolveStorageUrl } from '../../lib/libraryType';
+import type { DeploymentEntity, DeploymentScreenSummary } from '../../types/deployments';
 import { Badge, Button, CARD_SURFACE_CLASS, Modal, ModalBody, SectionLabel } from '../ui';
 
 export interface DeploymentDetailsModalProps {
   open: boolean;
-  deployment: Deployment | null;
+  deploymentId: string | null;
   onClose: () => void;
+}
+
+function formatLabel(value: string | undefined | null): string {
+  if (!value) return '—';
+  return value
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function brandingLabel(config?: Record<string, unknown>): string {
+  const mode = config?.brandingMode;
+  if (mode === 'CUSTOM') return 'Custom';
+  if (mode === 'NONE') return 'None';
+  return 'Platform default';
+}
+
+function resolveScreens(deployment: DeploymentEntity | undefined): DeploymentScreenSummary[] {
+  if (!deployment) return [];
+  if (Array.isArray(deployment.screens) && deployment.screens.length > 0) {
+    return deployment.screens;
+  }
+  return (deployment.screenAssignments ?? []).map((assignment) => ({
+    id: assignment.id,
+    screenKey: assignment.screenKey,
+    contentSlot: assignment.contentSlot,
+    categoryId: assignment.categoryId ?? null,
+    categoryName:
+      assignment.categoryName ?? assignment.category?.name ?? null,
+    categorySlug: assignment.categorySlug ?? assignment.category?.slug ?? null,
+    sortOrder: assignment.sortOrder,
+  }));
 }
 
 export function DeploymentDetailsModal({
   open,
-  deployment,
+  deploymentId,
   onClose,
 }: DeploymentDetailsModalProps) {
-  const displayDeployment = useMemo(
-    () => (deployment ? enrichDeploymentDetails(deployment) : null),
-    [deployment],
+  const { data: deployment, isLoading, isError } = useDeployment(
+    open ? deploymentId : null,
   );
 
-  const videoGroups = useMemo(() => {
-    if (!displayDeployment?.scheduleEntries?.length) return [];
-
-    const groups = new Map<string, typeof displayDeployment.scheduleEntries>();
-    displayDeployment.scheduleEntries.forEach((entry) => {
-      const key = getFullCategoryLabel(entry.categoryId);
-      const existing = groups.get(key) ?? [];
-      groups.set(key, [...existing, entry]);
-    });
-
-    return Array.from(groups.entries()).map(([programLabel, entries]) => ({
-      programLabel,
-      entries: [...entries].sort((a, b) => a.day - b.day),
-    }));
-  }, [displayDeployment]);
-
-  const brandingDisplay = useMemo(() => {
-    if (!displayDeployment) return null;
-
-    return resolveDeploymentBranding(displayDeployment.brandingMode ?? 'default', {
-      companyName: displayDeployment.companyName ?? '',
-      brandingLogoUrl: displayDeployment.brandingLogoUrl ?? null,
-    });
-  }, [displayDeployment]);
-
-  const trackLabel = displayDeployment?.categoryId
-    ? getContentTrackLabel(getContentTrackFromCategoryId(displayDeployment.categoryId))
-    : '—';
-
-  const variationLabel = displayDeployment?.categoryId
-    ? getExerciseVariationLabel(getExerciseVariationFromCategoryId(displayDeployment.categoryId))
-    : '—';
-
-  const programSummary =
-    displayDeployment?.deploymentMode === 'default'
-      ? 'Default, Start Here, Phase 1, Phase 2'
-      : displayDeployment?.deploymentMode === 'touch-screen'
-        ? 'Default, Start Here, Phase 1, Phase 2, Full Program'
-        : '—';
+  const screens = useMemo(() => resolveScreens(deployment), [deployment]);
+  const branding = deployment?.branding?.[0];
+  const logoUrl =
+    branding && typeof branding.logoUrl === 'string'
+      ? resolveStorageUrl(branding.logoUrl)
+      : null;
 
   return (
     <Modal
       open={open}
       onClose={onClose}
       title="Deployment details"
-      description={displayDeployment?.name}
+      description={deployment?.name}
       size="xl"
-      className="max-h-[min(92vh,860px)] sm:max-h-[min(90vh,860px)]"
+      className="max-h-[min(92vh,860px)]"
       footer={
         <Button type="button" size="sm" className="h-9 px-4" onClick={onClose}>
           Close
@@ -93,157 +74,102 @@ export function DeploymentDetailsModal({
       }
     >
       <ModalBody className="space-y-4">
-        {!displayDeployment ? (
-          <p className="text-body-sm text-content-muted">No deployment selected.</p>
+        {isLoading ? (
+          <p className="text-body-sm text-content-muted">Loading deployment…</p>
+        ) : isError || !deployment ? (
+          <p className="text-body-sm text-content-muted">Failed to load deployment details.</p>
         ) : (
           <>
-            <div className={cn(CARD_SURFACE_CLASS, 'flex flex-wrap items-center justify-between gap-3 p-4')}>
-              <div>
-                <p className="text-body-sm font-medium text-content-primary">{displayDeployment.name}</p>
-                <p className="text-caption text-content-secondary">{displayDeployment.contentSchedule}</p>
-              </div>
-              <Badge variant={getDeploymentStatusVariant(displayDeployment.status)}>
-                {getDeploymentStatusLabel(displayDeployment.status)}
-              </Badge>
-            </div>
-
             <section className={cn(CARD_SURFACE_CLASS, 'p-4 sm:p-5')}>
               <SectionLabel className="mb-3 block">Overview</SectionLabel>
               <dl className="divide-y divide-surface-border rounded-lg border border-surface-border">
-                <DetailRow label="Deployment name" value={displayDeployment.name} />
-                <DetailRow label="Target device" value={displayDeployment.targetDevices} />
-                {displayDeployment.connectionStartDate && (
-                  <DetailRow
-                    label="Connection start"
-                    value={formatConnectionStartLabel(displayDeployment.connectionStartDate)}
-                  />
-                )}
-                <DetailRow label="Content / schedule" value={displayDeployment.contentSchedule} />
-                <DetailRow label="Started" value={displayDeployment.startedAt} />
-                <DetailRow label="Completed" value={displayDeployment.completedAt} />
+                <DetailRow label="Name" value={deployment.name || '—'} />
+                <DetailRow label="Type" value={formatLabel(deployment.deploymentType)} />
+                <DetailRow label="Field" value={formatLabel(deployment.fieldCategory)} />
+                <DetailRow label="Variant" value={formatLabel(deployment.exerciseVariant)} />
+                <DetailRow label="Branding" value={brandingLabel(deployment.config)} />
+                <DetailRow
+                  label="Devices"
+                  value={String(deployment.devices?.length ?? 0)}
+                />
+                <DetailRow
+                  label="Description"
+                  value={
+                    typeof deployment.description === 'string' && deployment.description.trim()
+                      ? deployment.description
+                      : '—'
+                  }
+                />
               </dl>
             </section>
 
             <section className={cn(CARD_SURFACE_CLASS, 'p-4 sm:p-5')}>
-              <SectionLabel className="mb-3 block">Deployment configuration</SectionLabel>
-              <dl className="divide-y divide-surface-border rounded-lg border border-surface-border">
-                <DetailRow
-                  label="Deployment type"
-                  value={
-                    displayDeployment.deploymentMode
-                      ? getDeploymentModeLabel(displayDeployment.deploymentMode)
-                      : '—'
-                  }
-                />
-                <DetailRow label="Category" value={trackLabel} />
-                <DetailRow label="Exercise variation" value={variationLabel} />
-                <DetailRow label="Programs" value={programSummary} />
-                <DetailRow
-                  label="Bundle deployment"
-                  value={
-                    displayDeployment.isBundleDeployment
-                      ? 'Yes'
-                      : displayDeployment.isBundleDeployment === false
-                        ? 'No'
-                        : '—'
-                  }
-                />
-                <DetailRow
-                  label="Uses rotation"
-                  value={
-                    displayDeployment.usesRotation
-                      ? 'Yes'
-                      : displayDeployment.usesRotation === false
-                        ? 'No'
-                        : '—'
-                  }
-                />
-                <DetailRow
-                  label="Rotation day"
-                  value={
-                    displayDeployment.rotationDay
-                      ? `Day ${displayDeployment.rotationDay}`
-                      : '—'
-                  }
-                />
-                <DetailRow
-                  label="Branding"
-                  value={getDeploymentBrandingLabel(displayDeployment.brandingMode)}
-                />
-                <DetailRow
-                  label="Company name"
-                  value={brandingDisplay?.companyName || '—'}
-                />
-              </dl>
+              <SectionLabel className="mb-3 block">Screen → category</SectionLabel>
+              {screens.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-surface-border px-4 py-6 text-center text-body-sm text-content-muted">
+                  No screen assignments on this deployment.
+                </p>
+              ) : (
+                <ul className="divide-y divide-surface-border rounded-lg border border-surface-border">
+                  {screens.map((screen) => (
+                    <li
+                      key={screen.screenKey}
+                      className="flex items-center justify-between gap-3 px-4 py-3"
+                    >
+                      <div>
+                        <p className="text-body-sm font-medium text-content-primary">
+                          {formatLabel(screen.screenKey)}
+                        </p>
+                        <p className="text-caption text-content-muted">
+                          {screen.contentSlot
+                            ? formatLabel(screen.contentSlot)
+                            : 'Content slot'}
+                        </p>
+                      </div>
+                      <Badge variant="brand">
+                        {screen.categoryName || screen.categoryId || 'Unassigned'}
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </section>
 
-            {brandingDisplay && (
+            {deployment.devices && deployment.devices.length > 0 && (
               <section className={cn(CARD_SURFACE_CLASS, 'p-4 sm:p-5')}>
-                <SectionLabel className="mb-3 block">Company branding</SectionLabel>
-                <div className="flex items-center gap-4">
-                  <div className="relative h-20 w-36 overflow-hidden rounded-lg border border-surface-border bg-gradient-to-br from-p6-gray-300 to-p6-gray-400 dark:from-p6-gray-700 dark:to-p6-gray-900">
-                    <div className="absolute left-2 top-2 flex max-w-[calc(100%-1rem)] items-center gap-1.5 rounded bg-white/95 px-1.5 py-1 shadow-sm">
-                      {brandingDisplay.brandingLogoUrl && (
-                        <img
-                          src={brandingDisplay.brandingLogoUrl}
-                          alt=""
-                          className="h-6 w-6 shrink-0 rounded object-contain"
-                        />
-                      )}
-                      {brandingDisplay.companyName && (
-                        <span className="truncate text-xs font-semibold text-p6-gray-950">
-                          {brandingDisplay.companyName}
+                <SectionLabel className="mb-3 block">Linked devices</SectionLabel>
+                <ul className="divide-y divide-surface-border rounded-lg border border-surface-border">
+                  {deployment.devices.map((device) => (
+                    <li key={device.id} className="px-4 py-3 text-body-sm text-content-primary">
+                      <span className="font-medium">{device.id.slice(0, 8)}…</span>
+                      {device.rotationStartDate ? (
+                        <span className="ml-2 text-content-secondary">
+                          Rotation start {String(device.rotationStartDate)}
                         </span>
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-body-sm text-content-secondary">
-                    Logo and company name are shown on the upper-left corner of deployed videos.
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {(logoUrl || branding?.brandName) && (
+              <section className={cn(CARD_SURFACE_CLASS, 'p-4 sm:p-5')}>
+                <SectionLabel className="mb-3 block">Branding</SectionLabel>
+                <div className="flex items-center gap-3">
+                  {logoUrl && (
+                    <img
+                      src={logoUrl}
+                      alt=""
+                      className="h-12 w-12 rounded object-contain border border-surface-border bg-white"
+                    />
+                  )}
+                  <p className="text-body-sm text-content-primary">
+                    {branding?.brandName || 'Custom branding'}
                   </p>
                 </div>
               </section>
             )}
-
-            <section className={cn(CARD_SURFACE_CLASS, 'p-4 sm:p-5')}>
-              <SectionLabel className="mb-3 block">Deployed videos</SectionLabel>
-              {videoGroups.length === 0 ? (
-                <p className="rounded-lg border border-dashed border-surface-border px-4 py-8 text-center text-body-sm text-content-muted">
-                  No video schedule was recorded for this deployment.
-                </p>
-              ) : (
-                <div className="max-h-72 space-y-4 overflow-y-auto pr-1">
-                  {videoGroups.map(({ programLabel, entries }) => (
-                    <div key={programLabel}>
-                      <div className="mb-2 flex items-center justify-between gap-2">
-                        <p className="text-caption font-semibold uppercase tracking-wide text-content-muted">
-                          {programLabel}
-                        </p>
-                        <Badge variant="neutral">
-                          {entries.length} video{entries.length === 1 ? '' : 's'}
-                        </Badge>
-                      </div>
-                      <ul className="divide-y divide-surface-border rounded-lg border border-surface-border">
-                        {entries.map((entry, index) => (
-                          <li
-                            key={`${programLabel}-${entry.day}-${index}`}
-                            className="flex items-center justify-between gap-3 px-3 py-2.5"
-                          >
-                            <span className="min-w-0 truncate text-body-sm text-content-primary">
-                              {entry.videoTitle}
-                            </span>
-                            <span className="shrink-0 text-caption text-content-secondary">
-                              {usesRotationForPlayback(getPlaybackCategoryForContent(entry.categoryId))
-                                ? `Day ${entry.day}`
-                                : 'All days'}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
           </>
         )}
       </ModalBody>
@@ -255,13 +181,9 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-4 px-4 py-3">
       <dt className="text-body-sm text-content-secondary">{label}</dt>
-      <dd className="text-right text-body-sm font-medium text-content-primary">{value}</dd>
+      <dd className="max-w-[60%] text-right text-body-sm font-medium text-content-primary">
+        {value}
+      </dd>
     </div>
   );
-}
-
-function formatConnectionStartLabel(value: string): string {
-  const [year, month, day] = value.split('-').map((part) => Number.parseInt(part, 10));
-  if (!year || !month || !day) return value;
-  return formatDateLabel(new Date(year, month - 1, day));
 }

@@ -1,16 +1,18 @@
 import { useMemo, useState } from 'react';
-import { Pencil, Search } from 'lucide-react';
+import { Eye, Pencil, Search } from 'lucide-react';
 import {
   Badge,
   Button,
   Card,
   EmptyState,
+  IconButton,
   Input,
   Pagination,
   SectionLabel,
 } from '../ui';
 import { useDeploymentsList } from '../../hooks/useDeployments';
 import type { DeploymentEntity } from '../../types/deployments';
+import { DeploymentDetailsModal } from './DeploymentDetailsModal';
 import { EditDeploymentModal } from './EditDeploymentModal';
 
 const PAGE_SIZE = 10;
@@ -35,6 +37,7 @@ export function DeploymentsList() {
   const [search, setSearch] = useState('');
   const [searchDraft, setSearchDraft] = useState('');
   const [editing, setEditing] = useState<DeploymentEntity | null>(null);
+  const [viewingId, setViewingId] = useState<string | null>(null);
 
   const query = useMemo(
     () => ({
@@ -56,7 +59,7 @@ export function DeploymentsList() {
           <div>
             <SectionLabel>Registered deployments</SectionLabel>
             <p className="mt-1 text-caption text-content-secondary">
-              Live list from the API — edit field, variant, branding, or name after register.
+              View screen→category mapping, or edit field, variant, branding, and screens.
             </p>
           </div>
           <form
@@ -121,17 +124,21 @@ export function DeploymentsList() {
                     <td className="px-3 py-3 text-content-secondary">
                       {brandingLabel(deployment.config)}
                     </td>
-                    <td className="px-3 py-3 text-right">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-8 gap-1.5 px-2.5"
-                        onClick={() => setEditing(deployment)}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                        Edit
-                      </Button>
+                    <td className="px-3 py-3">
+                      <div className="flex justify-end gap-1">
+                        <IconButton
+                          label={`View ${deployment.name ?? 'deployment'}`}
+                          onClick={() => setViewingId(deployment.id)}
+                        >
+                          <Eye />
+                        </IconButton>
+                        <IconButton
+                          label={`Edit ${deployment.name ?? 'deployment'}`}
+                          onClick={() => setEditing(deployment)}
+                        >
+                          <Pencil />
+                        </IconButton>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -150,6 +157,12 @@ export function DeploymentsList() {
           />
         )}
       </Card>
+
+      <DeploymentDetailsModal
+        open={viewingId !== null}
+        deploymentId={viewingId}
+        onClose={() => setViewingId(null)}
+      />
 
       <EditDeploymentModal
         open={editing !== null}

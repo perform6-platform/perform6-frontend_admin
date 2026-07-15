@@ -10,12 +10,14 @@ import {
   getRotationDay,
   getRotationPrograms,
   patchRotationBulk,
+  patchRotationProgram,
   setDeviceRotationStartDate,
   updateRotationSession,
 } from '../services/rotation.api';
 import { normalizeRotationPrograms } from '../lib/rotationMapper';
 import type {
   CreateRotationSessionPayload,
+  ProgramRotationPatchPayload,
   RotationBulkPayload,
   RotationBulkSection,
   SetRotationStartDatePayload,
@@ -95,6 +97,19 @@ export function usePatchRotationBulk() {
       if (normalized.length > 0) {
         queryClient.setQueryData(queryKeys.rotation.all, normalized);
       }
+      queryClient.invalidateQueries({ queryKey: queryKeys.rotation.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.rotation.current });
+    },
+  });
+}
+
+/** PATCH /rotation/programs/:programId */
+export function usePatchRotationProgram() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { programId: string; payload: ProgramRotationPatchPayload }) =>
+      patchRotationProgram(vars.programId, vars.payload),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.rotation.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.rotation.current });
     },

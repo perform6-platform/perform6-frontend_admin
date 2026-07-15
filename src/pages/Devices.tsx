@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, RefreshCw, Search, XCircle } from 'lucide-react';
+import { RefreshCw, Search } from 'lucide-react';
 import { DeviceDetailsPanel } from '../components/devices/DeviceDetailsPanel';
 import { AddDeviceModal } from '../components/devices/AddDeviceModal';
 import {
@@ -98,13 +98,83 @@ export default function Devices() {
     {
       key: 'name',
       header: 'Device Name',
-      render: (row) => <span className="font-medium">{row.name}</span>,
+      render: (row) => (
+        <div className="min-w-0">
+          <span className="block truncate font-medium">{row.name}</span>
+          {row.pairingCode ? (
+            <span className="mt-0.5 block text-caption text-content-secondary">
+              Code {row.pairingCode}
+            </span>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      key: 'serialNumber',
+      header: 'Serial',
+      hideOnMobile: true,
+      render: (row) => (
+        <span className="font-mono text-body-sm text-content-secondary">{row.serialNumber}</span>
+      ),
+    },
+    {
+      key: 'inventoryState',
+      header: 'State',
+      render: (row) => {
+        const state = row.inventoryState ?? 'pending';
+        const label =
+          state === 'registered' ? 'Registered' : state === 'claimed' ? 'Claimed' : 'Pending';
+        const variant =
+          state === 'registered' ? 'success' : state === 'claimed' ? 'warning' : 'neutral';
+        return <Badge variant={variant}>{label}</Badge>;
+      },
+    },
+    {
+      key: 'model',
+      header: 'Model',
+      hideOnMobile: true,
+      render: (row) => row.model,
     },
     {
       key: 'location',
       header: 'Location',
       hideOnMobile: true,
       render: (row) => row.location,
+    },
+    {
+      key: 'fieldCategory',
+      header: 'Field',
+      hideOnMobile: true,
+      render: (row) => row.fieldCategory?.trim() || '—',
+    },
+    {
+      key: 'exerciseVariant',
+      header: 'Variant',
+      hideOnMobile: true,
+      render: (row) => row.exerciseVariant?.trim() || '—',
+    },
+    {
+      key: 'deploymentName',
+      header: 'Deployment',
+      hideOnMobile: true,
+      render: (row) => {
+        if (row.activationStatus === 'DISABLED') {
+          return <span className="text-content-secondary">Disabled</span>;
+        }
+        if (row.deploymentName) {
+          return (
+            <div className="min-w-0">
+              <span className="block truncate">{row.deploymentName}</span>
+              {row.deploymentType ? (
+                <span className="mt-0.5 block text-caption text-content-secondary">
+                  {row.deploymentType}
+                </span>
+              ) : null}
+            </div>
+          );
+        }
+        return <span className="text-content-secondary">—</span>;
+      },
     },
     {
       key: 'status',
@@ -116,36 +186,8 @@ export default function Devices() {
       ),
     },
     {
-      key: 'currentDay',
-      header: 'Model',
-      hideOnMobile: true,
-      render: (row) => row.model,
-    },
-    {
-      key: 'brightSignStatus',
-      header: 'BrightSign Status',
-      hideOnMobile: true,
-      render: (row) => (
-        <span
-          className={cn(
-            'inline-flex items-center gap-1.5 text-body-sm font-medium',
-            row.brightSignStatus === 'connected'
-              ? 'text-status-success'
-              : 'text-status-danger',
-          )}
-        >
-          {row.brightSignStatus === 'connected' ? (
-            <CheckCircle2 className="h-4 w-4" />
-          ) : (
-            <XCircle className="h-4 w-4" />
-          )}
-          {row.brightSignStatus === 'connected' ? 'Connected' : 'Disconnected'}
-        </span>
-      ),
-    },
-    {
       key: 'lastSync',
-      header: 'Last Sync',
+      header: 'Last Seen',
       hideOnMobile: true,
       render: (row) => <span className="text-content-secondary">{row.lastSync}</span>,
     },

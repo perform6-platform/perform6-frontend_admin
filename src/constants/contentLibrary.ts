@@ -20,6 +20,8 @@ export interface ContentItem {
   /** Active media version id from API — required for POST /rotation. */
   mediaVersionId?: string;
   libraryType?: string;
+  /** Custom category program id when not a system library. */
+  programId?: string;
   /** Backend media workflow status. */
   status?: 'READY' | 'PROCESSING' | 'FAILED' | 'ARCHIVED' | string;
   updatedAt?: string;

@@ -1,7 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../lib/queryKeys';
 import {
+  attachDevice,
   claimPairingRequest,
+  disableDevice,
+  disconnectDevice,
   getClaimedPairings,
   getDeviceById,
   getDevices,
@@ -15,6 +18,11 @@ import type {
   DeviceInventoryQuery,
   PairDevicePayload,
 } from '../types/devices';
+
+function invalidateDeviceQueries(queryClient: ReturnType<typeof useQueryClient>) {
+  void queryClient.invalidateQueries({ queryKey: ['devices'] });
+  void queryClient.invalidateQueries({ queryKey: ['deployments'] });
+}
 
 /** GET /devices?state=&hardwareProfile=&search=&page=&limit= */
 export function useDevices(query: DeviceInventoryQuery = {}) {
@@ -95,7 +103,32 @@ export function useClaimPairing() {
   return useMutation({
     mutationFn: (payload: ClaimPairingPayload) => claimPairingRequest(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['devices'] });
+      invalidateDeviceQueries(queryClient);
     },
+  });
+}
+
+export function useDisconnectDevice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (deviceId: string) => disconnectDevice(deviceId),
+    onSuccess: () => invalidateDeviceQueries(queryClient),
+  });
+}
+
+export function useDisableDevice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (deviceId: string) => disableDevice(deviceId),
+    onSuccess: () => invalidateDeviceQueries(queryClient),
+  });
+}
+
+export function useAttachDevice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { deviceId: string; deploymentId: string }) =>
+      attachDevice(vars.deviceId, vars.deploymentId),
+    onSuccess: () => invalidateDeviceQueries(queryClient),
   });
 }

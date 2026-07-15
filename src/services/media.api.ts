@@ -12,12 +12,13 @@ import type {
 import { MULTIPART_HEADERS, toFormData } from '../lib/formData';
 import { apiClient } from './axios';
 
-/** POST /media/upload — multipart (libraryType required; thumbnail optional). */
+/** POST /media/upload — multipart (libraryType or programId). */
 export async function uploadMedia(payload: UploadMediaPayload): Promise<MediaUploadResult> {
   const form = toFormData({
     file: payload.file,
     title: payload.title,
     libraryType: payload.libraryType,
+    programId: payload.programId,
     thumbnail: payload.thumbnail,
     mediaType: payload.mediaType,
     durationSeconds: payload.durationSeconds,

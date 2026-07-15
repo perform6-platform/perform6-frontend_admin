@@ -13,6 +13,7 @@ import {
 } from '../ui';
 import { useToast } from '../../context/ToastContext';
 import { useCreateBranding, usePlatformDefaultBranding } from '../../hooks/useBranding';
+import { useCategories } from '../../hooks/useCategories';
 import {
   useCategoryVariants,
   useDeploymentCategories,
@@ -26,6 +27,10 @@ import {
   formatPreviewDuration,
   parseDeploymentPreviewSlots,
 } from '../../lib/deploymentPreview';
+import {
+  DEFAULT_DEPLOYMENT_SCREENS,
+  resolveDefaultScreenCategorySlugs,
+} from '../../lib/screenCategoryDefaults';
 import { cn } from '../../lib/cn';
 import { formatDateLabel } from '../../lib/formatDateLabel';
 import { getApiErrorMessage } from '../../services/axios';
@@ -47,13 +52,17 @@ const brandingOptions = [
 ] as const;
 
 const hd226Slots = [
-  { memberKey: 'DEVICE_A' as const, label: 'Start Here Player (DEVICE_A)' },
-  { memberKey: 'DEVICE_B' as const, label: 'Phase 1 Player (DEVICE_B)' },
-  { memberKey: 'DEVICE_C' as const, label: 'Phase 2 Player (DEVICE_C)' },
+  { memberKey: 'DEVICE_A' as const, label: 'Start Here Player (DEVICE_A)', screenKey: 'SCREEN_1' },
+  { memberKey: 'DEVICE_B' as const, label: 'Phase 1 Player (DEVICE_B)', screenKey: 'SCREEN_2' },
+  { memberKey: 'DEVICE_C' as const, label: 'Phase 2 Player (DEVICE_C)', screenKey: 'SCREEN_3' },
 ];
 
 function isHd226(model: string | null | undefined): boolean {
   return (model ?? '').toUpperCase().includes('HD226');
+}
+
+function isDefaultDeployment(type: string): boolean {
+  return type === 'DEFAULT_DEPLOYMENT';
 }
 
 export interface NewDeploymentFormProps {
@@ -77,6 +86,12 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
     DEVICE_C: '',
   });
 
+  const [screenCategories, setScreenCategories] = useState<Record<string, string>>({
+    SCREEN_1: '',
+    SCREEN_2: '',
+    SCREEN_3: '',
+  });
+
   const [brandingUiMode, setBrandingUiMode] = useState<BrandingUiMode>('none');
   const [companyName, setCompanyName] = useState('');
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -88,6 +103,7 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
   const { data: variants = [], isLoading: variantsLoading } = useCategoryVariants(
     fieldCategory || null,
   );
+  const { data: contentCategories = [], isLoading: contentCategoriesLoading } = useCategories();
 
   const { data: claimedInventory } = useClaimedDevices({ limit: 100 });
   const { data: hd226Inventory } = useInventoryDevices({
@@ -96,17 +112,36 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
     limit: 100,
   });
 
-  const previewQuery =
-    deploymentType && fieldCategory && exerciseVariant
-      ? {
-          deploymentType,
-          fieldCategory,
-          exerciseVariant,
-          rotationStartDate: rotationStartDate
-            ? format(rotationStartDate, 'yyyy-MM-dd')
-            : undefined,
-        }
-      : null;
+  const previewQuery = useMemo(() => {
+    if (!deploymentType || !fieldCategory || !exerciseVariant) return null;
+
+    const screenCategoryPayload =
+      isDefaultDeployment(deploymentType) &&
+      DEFAULT_DEPLOYMENT_SCREENS.every((screen) =>
+        Boolean(screenCategories[screen.screenKey]),
+      )
+        ? DEFAULT_DEPLOYMENT_SCREENS.map((screen) => ({
+            screenKey: screen.screenKey,
+            categoryId: screenCategories[screen.screenKey]!,
+          }))
+        : undefined;
+
+    return {
+      deploymentType,
+      fieldCategory,
+      exerciseVariant,
+      rotationStartDate: rotationStartDate
+        ? format(rotationStartDate, 'yyyy-MM-dd')
+        : undefined,
+      screenCategories: screenCategoryPayload,
+    };
+  }, [
+    deploymentType,
+    fieldCategory,
+    exerciseVariant,
+    rotationStartDate,
+    screenCategories,
+  ]);
 
   const { data: preview, isLoading: previewLoading } = useDeploymentPreview(previewQuery);
   const { data: platformBranding } = usePlatformDefaultBranding();
@@ -122,6 +157,16 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
   );
 
   const isCluster = selectedDevice ? isHd226(selectedDevice.model) : false;
+  const showScreenCategoryPicker = isDefaultDeployment(deploymentType);
+
+  const contentCategoryOptions = useMemo(
+    () =>
+      contentCategories.map((category) => ({
+        value: category.id,
+        label: `${category.name}${category.isSystem ? '' : ' (custom)'}`,
+      })),
+    [contentCategories],
+  );
 
   useEffect(() => {
     if (types.length > 0 && !deploymentType) {
@@ -150,11 +195,24 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
     }
   }, [selectedDevice, deviceName]);
 
+  useEffect(() => {
+    if (!showScreenCategoryPicker || !fieldCategory || !exerciseVariant) return;
+    if (contentCategories.length === 0) return;
+
+    const bySlug = new Map(contentCategories.map((c) => [c.slug, c.id]));
+    const defaults = resolveDefaultScreenCategorySlugs(fieldCategory, exerciseVariant);
+    setScreenCategories({
+      SCREEN_1: bySlug.get(defaults.SCREEN_1) ?? '',
+      SCREEN_2: bySlug.get(defaults.SCREEN_2) ?? '',
+      SCREEN_3: bySlug.get(defaults.SCREEN_3) ?? '',
+    });
+  }, [showScreenCategoryPicker, fieldCategory, exerciseVariant, contentCategories]);
+
   const deviceOptions = useMemo(
     () =>
       claimedDevices.map((device) => ({
         value: device.pairingId ?? '',
-        label: `${device.deviceName || device.serialNumber} — ${device.model}${
+        label: `${device.deviceName || device.serialNumber || 'Device'} — ${device.model || 'Unknown'}${
           device.location ? ` · ${device.location}` : ''
         }`,
       })),
@@ -165,17 +223,26 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
     () =>
       hd226Devices.map((device) => ({
         value: device.pairingId ?? '',
-        label: `${device.deviceName || device.serialNumber} — ${device.serialNumber}`,
+        label: `${device.deviceName || device.serialNumber || 'Device'} — ${device.serialNumber || '—'}`,
       })),
     [hd226Devices],
   );
 
   const previewSlots = useMemo(() => parseDeploymentPreviewSlots(preview), [preview]);
 
+  function buildScreenCategoriesPayload() {
+    if (!showScreenCategoryPicker) return undefined;
+    return DEFAULT_DEPLOYMENT_SCREENS.map((screen) => ({
+      screenKey: screen.screenKey,
+      categoryId: screenCategories[screen.screenKey]!,
+    }));
+  }
+
   function resetForm() {
     setStep(1);
     setSelectedPairingId('');
     setClusterMembers({ DEVICE_A: '', DEVICE_B: '', DEVICE_C: '' });
+    setScreenCategories({ SCREEN_1: '', SCREEN_2: '', SCREEN_3: '' });
     setDeviceName('');
     setBrandingUiMode('none');
     setCompanyName('');
@@ -190,14 +257,30 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
     return 'NONE';
   }
 
+  function screenCategoriesValid(): boolean {
+    if (!showScreenCategoryPicker) return true;
+    return DEFAULT_DEPLOYMENT_SCREENS.every((screen) =>
+      Boolean(screenCategories[screen.screenKey]),
+    );
+  }
+
   async function handleDeploy() {
     if (!deploymentType || !fieldCategory || !exerciseVariant) {
       showToast({ title: 'Select type, category, and variant first', variant: 'error' });
       return;
     }
 
+    if (!screenCategoriesValid()) {
+      showToast({
+        title: 'Select a content category for each screen',
+        variant: 'error',
+      });
+      return;
+    }
+
     const dateStr = rotationStartDate ? format(rotationStartDate, 'yyyy-MM-dd') : undefined;
     const brandingMode = toApiBrandingMode(brandingUiMode);
+    const screenCategoryPayload = buildScreenCategoriesPayload();
 
     setIsSubmitting(true);
     try {
@@ -248,6 +331,7 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
           rotationStartDate: dateStr,
           brandingMode,
           brandingId,
+          screenCategories: screenCategoryPayload,
         };
 
         const result = await registerDeployment(payload);
@@ -276,6 +360,7 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
         hardwareProfile: selectedDevice?.model,
         brandingMode,
         brandingId,
+        screenCategories: screenCategoryPayload,
       };
 
       const result = await registerDeployment(payload);
@@ -299,7 +384,12 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
   }
 
   function canGoNext(): boolean {
-    if (step === 1) return Boolean(deploymentType && fieldCategory && exerciseVariant);
+    if (step === 1) {
+      return (
+        Boolean(deploymentType && fieldCategory && exerciseVariant) &&
+        screenCategoriesValid()
+      );
+    }
     if (step === 2) return true;
     if (step === 3) {
       if (isCluster) {
@@ -363,6 +453,43 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
               </p>
             )}
           </div>
+
+          {showScreenCategoryPicker && (
+            <div className="space-y-3 rounded-lg border border-surface-border p-3">
+              <div>
+                <p className="text-body-sm font-medium text-content-primary">
+                  Screen content (per output)
+                </p>
+                <p className="text-caption text-content-secondary">
+                  Choose which category plays on each screen. Defaults follow field/variant;
+                  change freely. HD226 players A/B/C map to Screen 1/2/3.
+                </p>
+              </div>
+              {DEFAULT_DEPLOYMENT_SCREENS.map((screen) => (
+                <div key={screen.screenKey}>
+                  <p className="mb-1 text-xs font-medium text-content-muted">
+                    {screen.label}
+                    <span className="text-content-secondary"> · {screen.clusterLabel}</span>
+                  </p>
+                  <Dropdown
+                    options={[
+                      { value: '', label: 'Select category…' },
+                      ...contentCategoryOptions,
+                    ]}
+                    value={screenCategories[screen.screenKey] ?? ''}
+                    onChange={(value) =>
+                      setScreenCategories((current) => ({
+                        ...current,
+                        [screen.screenKey]: value,
+                      }))
+                    }
+                    fullWidth
+                    disabled={contentCategoriesLoading}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -370,8 +497,9 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
         <div className={cn(CARD_SURFACE_CLASS, 'space-y-4 p-4 sm:p-5')}>
           <SectionLabel className="block">Content preview</SectionLabel>
           <p className="text-body-sm text-content-secondary">
-            All assigned videos for this deployment configuration. Rotating libraries list every
-            rotation day — each item&apos;s <strong>day</strong> is the rotation day number.
+            {showScreenCategoryPicker
+              ? 'Preview uses the categories you selected for Screen 1 / 2 / 3 (resolved by field/variant playlists).'
+              : 'Touchscreen preview lists all parent content categories and their resolved playlists.'}
           </p>
           {previewLoading && (
             <p className="text-body-sm text-content-muted">Loading preview…</p>
@@ -489,7 +617,7 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
           {isCluster && (
             <div className="space-y-3 rounded-lg border border-surface-border p-3">
               <p className="text-body-sm font-medium text-content-primary">
-                HD226 cluster slots (A → Start Here, B → Phase 1, C → Phase 2)
+                HD226 cluster slots (content follows Screen 1/2/3 categories from step 1)
               </p>
               {hd226Slots.map((slot) => (
                 <div key={slot.memberKey}>
@@ -580,6 +708,21 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
                 ? 'HD226 cluster (3 players)'
                 : selectedDevice?.deviceName || selectedDevice?.serialNumber || '—'}
             </p>
+            {showScreenCategoryPicker && (
+              <div className="mt-2 space-y-1 border-t border-surface-border pt-2">
+                {DEFAULT_DEPLOYMENT_SCREENS.map((screen) => {
+                  const category = contentCategories.find(
+                    (c) => c.id === screenCategories[screen.screenKey],
+                  );
+                  return (
+                    <p key={screen.screenKey}>
+                      <span className="font-medium text-content-primary">{screen.label}:</span>{' '}
+                      {category?.name ?? '—'}
+                    </p>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

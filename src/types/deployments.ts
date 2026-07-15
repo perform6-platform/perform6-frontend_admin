@@ -14,7 +14,9 @@ export type BrandingMode = 'NONE' | 'PLATFORM_DEFAULT' | 'CUSTOM';
 export interface PreviewSlot {
   key: string;
   label: string;
-  libraryType: string;
+  libraryType?: string | null;
+  categoryId?: string | null;
+  isRotating?: boolean;
 }
 
 export interface PreviewItem {
@@ -58,6 +60,8 @@ export interface DeploymentPreviewQuery {
   rotationStartDate?: string;
   /** Optional single-day filter — omit in wizard to load the full rotation list. */
   day?: number;
+  /** DEFAULT_DEPLOYMENT: selected parent categories per screen. */
+  screenCategories?: Array<{ screenKey: string; categoryId: string }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -81,6 +85,8 @@ export interface RegisterSinglePayload {
   hardwareProfile?: HardwareProfileCode;
   brandingMode: BrandingMode;
   brandingId?: string;
+  /** DEFAULT_DEPLOYMENT: per-screen content category (program id). */
+  screenCategories?: Array<{ screenKey: string; categoryId: string }>;
 }
 
 /** HD226 3-player cluster register. */
@@ -93,6 +99,7 @@ export interface RegisterClusterPayload {
   rotationStartDate?: string;
   brandingMode: BrandingMode;
   brandingId?: string;
+  screenCategories?: Array<{ screenKey: string; categoryId: string }>;
 }
 
 export type RegisterDeploymentPayload = RegisterSinglePayload | RegisterClusterPayload;
@@ -188,19 +195,25 @@ export interface ScreenAssignment {
   id?: string;
   screenKey: string;
   contentSlot: string;
+  categoryId?: string | null;
+  categoryName?: string | null;
+  categorySlug?: string | null;
   sortOrder: number;
   metadata?: Record<string, unknown>;
+  category?: { id: string; name: string; slug?: string } | null;
 }
 
 export interface CreateScreenAssignmentPayload {
   screenKey: string;
-  contentSlot: string;
+  contentSlot?: string;
+  categoryId?: string;
   sortOrder: number;
   metadata?: Record<string, unknown>;
 }
 
 export interface UpdateScreenAssignmentPayload {
   contentSlot?: string;
+  categoryId?: string | null;
   sortOrder?: number;
   metadata?: Record<string, unknown>;
 }
@@ -228,6 +241,16 @@ export interface RuntimeManifestResult {
   manifest: unknown;
 }
 
+export interface DeploymentScreenSummary {
+  id?: string;
+  screenKey: string;
+  contentSlot?: string;
+  categoryId: string | null;
+  categoryName: string | null;
+  categorySlug?: string | null;
+  sortOrder?: number;
+}
+
 export interface DeploymentEntity {
   id: string;
   name?: string;
@@ -242,7 +265,15 @@ export interface DeploymentEntity {
     rotationStartDate?: string | null;
     [key: string]: unknown;
   }>;
-  branding?: unknown[];
+  branding?: Array<{
+    id: string;
+    brandName?: string | null;
+    logoUrl?: string | null;
+    [key: string]: unknown;
+  }>;
+  screenAssignments?: ScreenAssignment[];
+  /** Enriched by GET /deployments/:id */
+  screens?: DeploymentScreenSummary[];
   createdAt?: string;
   updatedAt?: string;
   [key: string]: unknown;
@@ -278,6 +309,7 @@ export interface UpdateDeploymentPayload {
   exerciseVariant?: string;
   brandingMode?: BrandingMode;
   brandingId?: string;
+  screenCategories?: Array<{ screenKey: string; categoryId: string }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -295,6 +327,8 @@ export interface DeploymentScheduleTableColumn {
   label: string;
   group?: string | null;
   libraryType?: string | null;
+  categoryId?: string | null;
+  isRotating?: boolean;
   /** Wall / No Wall / Fitness / Golf — shown under Phase 1 headers and in cells. */
   variantLabel?: string | null;
 }

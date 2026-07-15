@@ -72,7 +72,17 @@ export async function getDeploymentPreview(
   query: DeploymentPreviewQuery,
 ): Promise<DeploymentPreview> {
   const { data } = await apiClient.get<ApiResponse<DeploymentPreview>>('/deployments/preview', {
-    params: query,
+    params: {
+      deploymentType: query.deploymentType,
+      fieldCategory: query.fieldCategory,
+      exerciseVariant: query.exerciseVariant,
+      rotationStartDate: query.rotationStartDate,
+      day: query.day,
+      screenCategories:
+        query.screenCategories && query.screenCategories.length > 0
+          ? JSON.stringify(query.screenCategories)
+          : undefined,
+    },
   });
   return data.data;
 }

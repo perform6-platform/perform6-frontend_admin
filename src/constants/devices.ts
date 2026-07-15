@@ -14,6 +14,27 @@ export interface Device {
   firmware: string;
   uptime: string;
   storageUsed: number;
+  /** Registered device UUID — null while pending/claimed only. */
+  deviceId?: string | null;
+  pairingId?: string | null;
+  deploymentId?: string | null;
+  deploymentName?: string | null;
+  deploymentType?: string | null;
+  fieldCategory?: string | null;
+  exerciseVariant?: string | null;
+  activationStatus?: string | null;
+  pairingStatus?: string | null;
+  inventoryState?: 'pending' | 'claimed' | 'registered';
+  pairingCode?: string | null;
+  timezone?: string | null;
+  rotationDay?: number | null;
+  screens?: Array<{
+    screenKey: string;
+    categoryId: string | null;
+    categoryName: string | null;
+    title: string | null;
+    thumbnail: string | null;
+  }>;
 }
 
 export const locationOptions = [

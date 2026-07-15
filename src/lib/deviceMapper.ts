@@ -30,33 +30,38 @@ function formatDuration(seconds: number | null | undefined): string | undefined 
 
 /** Map inventory row (GET /devices) into the UI Device shape. */
 export function mapInventoryItem(item: DeviceInventoryItem): Device {
-  const online =
-    item.isOnline ??
-    (item.state === 'pending' || item.state === 'claimed'
-      ? Boolean(item.lastSeenAt)
-      : Boolean(item.lastSeenAt));
+  const online = Boolean(item.isOnline);
 
-  const locationLabel =
-    item.location?.trim() ||
-    (item.state === 'claimed'
-      ? 'Claimed (pending deploy)'
-      : item.state === 'pending'
-        ? 'Pending pairing'
-        : 'Unassigned');
+  const rotationDay = item.rotationStartDate
+    ? getRotationDayFromConnectionStart(item.rotationStartDate)
+    : null;
 
   return {
-    id: item.deviceId ?? item.pairingId ?? item.serialNumber,
-    name: item.deviceName || item.serialNumber,
-    location: locationLabel,
+    id: item.deviceId ?? item.pairingId ?? item.serialNumber ?? 'unknown',
+    name: item.deviceName?.trim() || item.serialNumber || 'Unnamed device',
+    location: item.location?.trim() || '—',
     status: online ? 'online' : 'offline',
-    currentDay: '—',
+    currentDay: rotationDay ? `Day ${rotationDay}` : '—',
     brightSignStatus: online ? 'connected' : 'disconnected',
     lastSync: relativeTime(item.lastSeenAt),
-    model: item.model,
-    serialNumber: item.serialNumber,
-    firmware: item.firmwareVersion ?? '—',
+    model: item.model?.trim() || '—',
+    serialNumber: item.serialNumber?.trim() || '—',
+    firmware: item.firmwareVersion?.trim() || '—',
     uptime: '—',
     storageUsed: 0,
+    deviceId: item.deviceId,
+    pairingId: item.pairingId,
+    deploymentId: item.deploymentId,
+    deploymentName: item.deploymentName ?? null,
+    deploymentType: item.deploymentType ?? null,
+    fieldCategory: item.fieldCategory ?? null,
+    exerciseVariant: item.exerciseVariant ?? null,
+    activationStatus: item.activationStatus ?? null,
+    pairingStatus: item.pairingStatus ?? null,
+    inventoryState: item.state,
+    pairingCode: item.pairingCode ?? null,
+    timezone: item.timezone ?? null,
+    rotationDay,
   };
 }
 
@@ -78,17 +83,15 @@ export function mapRegisteredDevice(device: RegisteredDevice): Device {
       ? String((device.deployment.config as { hardwareProfileCode?: unknown }).hardwareProfileCode ?? '')
       : '';
 
-  const locationParts = [
-    device.deployment?.fieldCategory,
-    device.deployment?.exerciseVariant,
-  ].filter(Boolean);
+  const apiRotationDay =
+    typeof device.rotationDay === 'number' ? device.rotationDay : rotationDay;
 
   return {
     id: device.id,
     name: device.deviceName || device.serialNumber || deploymentName || device.id.slice(0, 8),
-    location: locationParts.length > 0 ? locationParts.join(' · ') : 'Unassigned',
+    location: '—',
     status: online ? 'online' : 'offline',
-    currentDay: rotationDay ? `Day ${rotationDay}` : '—',
+    currentDay: apiRotationDay ? `Day ${apiRotationDay}` : '—',
     brightSignStatus: online ? 'connected' : 'disconnected',
     lastSync: relativeTime(device.lastSeenAt ?? device.health?.lastSyncAt ?? null),
     model: device.model || hardwareProfile || '—',
@@ -99,12 +102,25 @@ export function mapRegisteredDevice(device: RegisteredDevice): Device {
       device.health?.storageUsedBytes,
       device.health?.storageCapacityBytes,
     ),
+    deviceId: device.id,
+    deploymentId: device.deploymentId,
+    deploymentName: deploymentName ?? null,
+    deploymentType: device.deployment?.deploymentType ?? null,
+    fieldCategory: device.deployment?.fieldCategory ?? null,
+    exerciseVariant: device.deployment?.exerciseVariant ?? null,
+    activationStatus: device.activationStatus,
+    inventoryState: 'registered',
+    rotationDay: apiRotationDay,
+    screens: device.screens ?? [],
   };
 }
 
 /** Map API media asset into ContentItem for the library UI. */
 export function mapMediaAssetToContentItem(asset: MediaAsset): ContentItem | null {
-  const categoryId = libraryTypeToCategory(asset.libraryType ?? undefined);
+  const systemCategoryId = libraryTypeToCategory(asset.libraryType ?? undefined);
+  const categoryId =
+    systemCategoryId ??
+    (asset.programId ? (asset.programId as ContentItem['categoryId']) : null);
   if (!categoryId) return null;
 
   const activeVersion = asset.versions?.find((v) => v.isActive) ?? asset.versions?.[0];
@@ -139,6 +155,7 @@ export function mapMediaAssetToContentItem(asset: MediaAsset): ContentItem | nul
         : undefined,
     mediaVersionId: activeVersion?.id,
     libraryType: asset.libraryType ?? undefined,
+    programId: asset.programId ?? undefined,
     status: asset.status,
     updatedAt: asset.updatedAt,
   };

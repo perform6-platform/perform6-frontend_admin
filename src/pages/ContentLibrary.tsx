@@ -11,12 +11,16 @@ import {
 } from '../components/content-library/UploadContentModal';
 import { Button, Card, ConfirmModal, EmptyState, PageTitle } from '../components/ui';
 import type { ContentCategoryId, ContentItem, ContentTypeFilter } from '../constants/contentLibrary';
-import { getFullCategoryLabel } from '../constants/contentPlayback';
 import { useContent } from '../context/ContentContext';
 import { useToast } from '../context/ToastContext';
+import { useCategories } from '../hooks/useCategories';
 import { useDeleteMedia, useMediaAsset, useUploadMedia } from '../hooks/useMedia';
 import { useSmoothUploadProgress } from '../hooks/useSmoothUploadProgress';
-import { categoryToLibraryType } from '../lib/libraryType';
+import {
+  buildContentCategoryGroups,
+  getCategoryLabelFromGroups,
+} from '../lib/contentCategoryGroups';
+import { resolveMediaUploadTarget } from '../lib/libraryType';
 import { getApiErrorMessage } from '../services/axios';
 import { getMediaProcessingProgress } from '../services/media.api';
 import { useQueryClient } from '@tanstack/react-query';
@@ -47,6 +51,11 @@ export default function ContentLibrary() {
   const { items, isLoading, isError, refetch } = useContent();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
+  const { data: apiCategories = [] } = useCategories();
+  const categoryGroups = useMemo(
+    () => buildContentCategoryGroups(apiCategories),
+    [apiCategories],
+  );
   const { mutate: deleteMedia, isPending: isDeleting } = useDeleteMedia();
   const { mutateAsync: uploadMedia } = useUploadMedia();
   const {
@@ -71,6 +80,14 @@ export default function ContentLibrary() {
   const [processingAssetId, setProcessingAssetId] = useState<string | null>(null);
   const [processingJobId, setProcessingJobId] = useState<string | null>(null);
   const finishingRef = useRef(false);
+
+  useEffect(() => {
+    const allIds = categoryGroups.flatMap((group) => group.children.map((c) => c.id));
+    if (allIds.length === 0) return;
+    if (!allIds.includes(activeCategory)) {
+      setActiveCategory(allIds[0]!);
+    }
+  }, [categoryGroups, activeCategory]);
 
   const processingQuery = useMediaAsset(processingAssetId, {
     refetchInterval: (query) => {
@@ -217,10 +234,11 @@ export default function ContentLibrary() {
     start();
     try {
       const durationSeconds = await readVideoDurationSeconds(payload.file);
+      const uploadTarget = resolveMediaUploadTarget(payload.categoryId);
       const result = await uploadMedia({
         file: payload.file,
         title: payload.title.trim() || payload.file.name,
-        libraryType: categoryToLibraryType(payload.categoryId),
+        ...uploadTarget,
         thumbnail: payload.thumbnail,
         mediaType: 'VIDEO',
         durationSeconds,
@@ -251,7 +269,7 @@ export default function ContentLibrary() {
         setProcessingJobId(null);
         showToast({
           title: 'Video uploaded',
-          message: `"${result.asset.title}" is ready in ${getFullCategoryLabel(payload.categoryId)}.`,
+          message: `"${result.asset.title}" is ready in ${getCategoryLabelFromGroups(categoryGroups, payload.categoryId)}.`,
           variant: 'success',
         });
         finishingRef.current = false;
@@ -342,7 +360,11 @@ export default function ContentLibrary() {
 
           <div className="flex flex-col gap-5 border-t border-surface-border p-4 sm:p-5 lg:flex-row lg:gap-8">
             <div className="shrink-0 lg:border-r lg:border-surface-border lg:pr-6">
-              <CategorySidebar activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
+              <CategorySidebar
+                groups={categoryGroups}
+                activeCategory={activeCategory}
+                onCategoryChange={setActiveCategory}
+              />
             </div>
 
             <div className="min-w-0 flex-1">

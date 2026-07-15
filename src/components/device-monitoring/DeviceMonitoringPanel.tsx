@@ -48,14 +48,28 @@ function slotEntries(content: Record<string, ManifestSlot> | undefined): Playing
   });
 }
 
+function screenEntries(device: Device): PlayingEntry[] {
+  return (device.screens ?? []).map((screen) => ({
+    key: screen.screenKey,
+    group: screen.screenKey,
+    label: screen.categoryName || screen.screenKey,
+    video: screen.title || 'No video assigned',
+    thumbnail: resolveStorageUrl(screen.thumbnail) ?? undefined,
+  }));
+}
+
 export function DeviceMonitoringPanel({
   device,
   autoRefresh = false,
   className,
 }: DeviceMonitoringPanelProps) {
-  const { data: playback, isLoading, isError } = useDevicePlayback(device?.id ?? null, {
-    refetchInterval: autoRefresh ? 30_000 : false,
-  });
+  const hasFleetScreens = Boolean(device?.screens && device.screens.length > 0);
+  const { data: playback, isLoading, isError } = useDevicePlayback(
+    hasFleetScreens ? null : (device?.id ?? null),
+    {
+      refetchInterval: autoRefresh ? 30_000 : false,
+    },
+  );
 
   if (!device) {
     return (
@@ -65,8 +79,10 @@ export function DeviceMonitoringPanel({
     );
   }
 
-  const rotationDay = playback?.rotationDay;
-  const currentVideos = slotEntries(playback?.content);
+  const rotationDay = device.rotationDay ?? playback?.rotationDay;
+  const currentVideos = hasFleetScreens
+    ? screenEntries(device)
+    : slotEntries(playback?.content);
   const dayLabel =
     rotationDay != null
       ? `Day ${rotationDay}`
@@ -109,31 +125,45 @@ export function DeviceMonitoringPanel({
           </div>
         </div>
 
-        {isLoading ? (
+        {!hasFleetScreens && isLoading ? (
           <p className="rounded-lg border border-dashed border-surface-border px-4 py-8 text-center text-body-sm text-content-muted">
             Loading playback…
           </p>
-        ) : isError ? (
+        ) : !hasFleetScreens && isError ? (
           <p className="rounded-lg border border-dashed border-surface-border px-4 py-8 text-center text-body-sm text-content-muted">
             Could not load current playback for this device.
           </p>
         ) : currentVideos.length === 0 ? (
           <p className="rounded-lg border border-dashed border-surface-border px-4 py-8 text-center text-body-sm text-content-muted">
-            No content assigned for the current rotation day.
+            No screen content for today&apos;s rotation.
           </p>
         ) : (
-          <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          <ul className="space-y-2">
             {currentVideos.map((entry) => (
               <li
                 key={entry.key}
-                className="rounded-lg border border-surface-border bg-surface px-3 py-2.5"
+                className="flex items-center gap-3 rounded-lg border border-surface-border bg-surface-card px-3 py-2.5"
               >
-                <p className="text-caption font-medium text-content-muted">
-                  {entry.group} · {entry.label}
-                </p>
-                <p className="mt-0.5 truncate text-body-sm font-medium text-content-primary" title={entry.video}>
-                  {entry.video}
-                </p>
+                {entry.thumbnail ? (
+                  <img
+                    src={entry.thumbnail}
+                    alt=""
+                    className="h-10 w-14 shrink-0 rounded object-cover"
+                  />
+                ) : (
+                  <div className="flex h-10 w-14 shrink-0 items-center justify-center rounded bg-surface-muted text-[10px] text-content-muted">
+                    Screen
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-body-sm font-medium text-content-primary">
+                    {entry.video}
+                  </p>
+                  <p className="truncate text-caption text-content-secondary">{entry.label}</p>
+                </div>
+                <Badge variant="neutral" className="shrink-0">
+                  {entry.group.replace(/_/g, ' ')}
+                </Badge>
               </li>
             ))}
           </ul>

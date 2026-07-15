@@ -30,7 +30,7 @@ export interface RotationScheduleLocationState {
 }
 
 function getInventoryItemId(item: DeviceInventoryItem): string {
-  return item.deviceId ?? item.pairingId ?? item.serialNumber;
+  return item.deviceId ?? item.pairingId ?? item.serialNumber ?? 'unknown';
 }
 
 function parseIsoDate(value: string | null | undefined): Date | undefined {

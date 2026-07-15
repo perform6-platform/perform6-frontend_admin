@@ -73,12 +73,18 @@ export interface DeviceInventoryItem {
   state: 'pending' | 'claimed' | 'registered';
   pairingId: string | null;
   deviceId: string | null;
-  serialNumber: string;
+  serialNumber: string | null;
   deviceName: string | null;
-  model: string;
+  model: string | null;
   location: string | null;
   timezone: string | null;
   deploymentId: string | null;
+  deploymentName?: string | null;
+  deploymentType?: string | null;
+  fieldCategory?: string | null;
+  exerciseVariant?: string | null;
+  activationStatus?: string | null;
+  pairingStatus?: string | null;
   lastSeenAt: string | null;
   claimedAt: string | null;
   registeredAt: string | null;
@@ -86,6 +92,7 @@ export interface DeviceInventoryItem {
   firmwareVersion?: string | null;
   hardwareProfile?: HardwareProfileCode | null;
   isOnline?: boolean;
+  rotationStartDate?: string | null;
 }
 
 export interface DeviceInventoryMeta {
@@ -157,6 +164,15 @@ export interface RegisteredDevice {
   registrationStatus?: PairingRegistrationStatus;
   deployment?: DeploymentSummary | null;
   health?: DeviceHealthEntity | null;
+  /** Enriched by GET /monitoring/fleet/status — today's content per screen */
+  rotationDay?: number | null;
+  screens?: Array<{
+    screenKey: string;
+    categoryId: string | null;
+    categoryName: string | null;
+    title: string | null;
+    thumbnail: string | null;
+  }>;
   createdAt: string;
   updatedAt: string;
 }

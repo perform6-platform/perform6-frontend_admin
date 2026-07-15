@@ -1,4 +1,5 @@
 import { Route, Routes } from 'react-router-dom';
+import Categories from './pages/Categories';
 import ContentLibrary from './pages/ContentLibrary';
 import Dashboard from './pages/Dashboard';
 import Devices from './pages/Devices';
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/devices" element={<Devices />} />
           <Route path="/device-monitoring" element={<DeviceMonitoring />} />
           <Route path="/content-library" element={<ContentLibrary />} />
+          <Route path="/categories" element={<Categories />} />
           <Route path="/rotation" element={<Rotation />} />
           <Route path="/rotation-schedule" element={<RotationSchedule />} />
           <Route path="/deployments" element={<Deployments />} />

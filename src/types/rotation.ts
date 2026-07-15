@@ -33,6 +33,10 @@ export interface RotationBulkRotatingPayload {
 
 export type RotationBulkPayload = RotationBulkSinglePayload | RotationBulkRotatingPayload;
 
+export interface ProgramRotationPatchPayload {
+  assignments: Array<{ dayNumber: number; mediaVersionId: string | null }>;
+}
+
 export interface CreateRotationSessionPayload {
   programId: string;
   dayNumber: number;

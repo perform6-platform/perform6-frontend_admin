@@ -106,11 +106,24 @@ export function buildVideoAssignmentsFromPrograms(
   });
 
   for (const program of normalizedPrograms) {
-    const categoryId = libraryTypeToCategory(program.libraryType);
+    const categoryId =
+      libraryTypeToCategory(program.libraryType) ??
+      (program.libraryType ? null : (program.id as ContentCategoryId));
     if (!categoryId) continue;
 
+    // Seed assignment slots for videos already uploaded into this category.
+    getVideosByCategory(categoryId).forEach((video) => {
+      const key = getVideoAssignmentKey(categoryId, video.title);
+      if (!assignments[key]) {
+        assignments[key] = {
+          included: false,
+          day: video.rotationDay ?? 1,
+        };
+      }
+    });
+
     const videos = getVideosByCategory(categoryId);
-    const sessions = Array.isArray(program.sessions) ? program.sessions : [];
+    const sessions: ProgramSession[] = Array.isArray(program.sessions) ? program.sessions : [];
 
     if (program.isRotating) {
       for (const session of sessions) {
@@ -125,7 +138,7 @@ export function buildVideoAssignmentsFromPrograms(
       continue;
     }
 
-    const session = sessions.find((entry) => entry.dayNumber === 1) ?? sessions[0];
+    const session = sessions.find((entry: ProgramSession) => entry.dayNumber === 1) ?? sessions[0];
     if (!session) continue;
     const video = findVideoForSession(videos, session);
     if (!video) continue;

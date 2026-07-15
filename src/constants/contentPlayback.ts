@@ -1,4 +1,4 @@
-export type ContentCategoryId =
+export type SystemContentCategoryId =
   | 'default-fitness'
   | 'default-golf'
   | 'start-here-fitness'
@@ -10,12 +10,17 @@ export type ContentCategoryId =
   | 'phase-2'
   | 'full-program';
 
-export type PlaybackCategoryId =
+/** Sidebar / rotation category key — system slug or custom category UUID. */
+export type ContentCategoryId = SystemContentCategoryId | (string & {});
+
+export type SystemPlaybackCategoryId =
   | 'default'
   | 'start-here'
   | 'phase-1'
   | 'phase-2'
   | 'full-program';
+
+export type PlaybackCategoryId = SystemPlaybackCategoryId | 'custom';
 
 export type ContentTrack = 'fitness' | 'golf';
 
@@ -100,34 +105,67 @@ export const playbackRules: PlaybackRule[] = [
     approxDuration: '~60–75 min',
     usesRotation: true,
   },
+  {
+    categoryId: 'custom',
+    label: 'Custom',
+    options: 'Admin-created categories',
+    behavior:
+      'Uses the 36-day rotation schedule. Each day’s video follows the category Loop or Once setting.',
+    loops: true,
+    timeoutMinutes: null,
+    supportsPause: false,
+    approxDuration: 'Per category',
+    usesRotation: true,
+  },
 ];
 
+export interface CategoryGroupChild {
+  id: ContentCategoryId;
+  label: string;
+  /** Backend program UUID for this playlist (system or custom). */
+  programId?: string;
+}
+
 export interface CategoryGroup {
+  /** Unique nav/tab key (parent category UUID or system slug). */
+  groupKey: string;
   playbackCategory: PlaybackCategoryId;
   label: string;
-  children: { id: ContentCategoryId; label: string }[];
+  isSystem?: boolean;
+  parentCategoryId?: string;
+  scope?: 'GLOBAL' | 'BY_FIELD' | 'BY_FIELD_AND_VARIANT';
+  children: CategoryGroupChild[];
 }
 
 export const contentCategoryGroups: CategoryGroup[] = [
   {
+    groupKey: 'default',
     playbackCategory: 'default',
     label: 'Default',
+    isSystem: true,
+    scope: 'BY_FIELD',
     children: [
       { id: 'default-fitness', label: 'Fitness' },
       { id: 'default-golf', label: 'Golf' },
     ],
   },
   {
+    groupKey: 'start-here',
     playbackCategory: 'start-here',
     label: 'Start Here',
+    isSystem: true,
+    scope: 'BY_FIELD',
     children: [
       { id: 'start-here-fitness', label: 'Fitness' },
       { id: 'start-here-golf', label: 'Golf' },
     ],
   },
   {
+    groupKey: 'phase-1',
     playbackCategory: 'phase-1',
     label: 'Phase 1',
+    isSystem: true,
+    scope: 'BY_FIELD_AND_VARIANT',
     children: [
       { id: 'phase-1-fitness-wall', label: 'Fitness (Wall)' },
       { id: 'phase-1-fitness-no-wall', label: 'Fitness (No Wall)' },
@@ -136,13 +174,19 @@ export const contentCategoryGroups: CategoryGroup[] = [
     ],
   },
   {
+    groupKey: 'phase-2',
     playbackCategory: 'phase-2',
     label: 'Phase 2',
+    isSystem: true,
+    scope: 'GLOBAL',
     children: [{ id: 'phase-2', label: 'All Deployments' }],
   },
   {
+    groupKey: 'full-program',
     playbackCategory: 'full-program',
     label: 'Full Program',
+    isSystem: true,
+    scope: 'GLOBAL',
     children: [{ id: 'full-program', label: 'All Deployments' }],
   },
 ];
@@ -153,7 +197,9 @@ export function getPlaybackCategoryForContent(categoryId: ContentCategoryId): Pl
   const group = contentCategoryGroups.find((entry) =>
     entry.children.some((child) => child.id === categoryId),
   );
-  return group?.playbackCategory ?? 'default';
+  if (group) return group.playbackCategory;
+  // Custom category UUID (not in static groups)
+  return 'custom';
 }
 
 export function getCategoryLabel(categoryId: ContentCategoryId): string {
@@ -216,9 +262,8 @@ export function getFullCategoryLabel(categoryId: ContentCategoryId): string {
   return `${group.label} — ${child.label}`;
 }
 
-const categoryRotationColumn: Record<
-  ContentCategoryId,
-  Parameters<typeof buildRotationVideoName>[1]
+const categoryRotationColumn: Partial<
+  Record<SystemContentCategoryId, Parameters<typeof buildRotationVideoName>[1]>
 > = {
   'default-fitness': 'defaultFitness',
   'default-golf': 'defaultGolf',
@@ -236,7 +281,11 @@ export function getSuggestedVideoTitle(
   categoryId: ContentCategoryId,
   rotationDay = 1,
 ): string {
-  const column = categoryRotationColumn[categoryId];
+  const column = categoryRotationColumn[categoryId as SystemContentCategoryId];
+  if (!column) {
+    const dayPrefix = String(rotationDay).padStart(2, '0');
+    return `${dayPrefix}_Custom.mp4`;
+  }
   return `${buildRotationVideoName(rotationDay, column)}.mp4`;
 }
 
@@ -260,7 +309,9 @@ export function getUploadCategoryInfo(categoryId: ContentCategoryId, rotationDay
             ? 'Phase 1 daily rotation video'
             : playbackCategory === 'phase-2'
               ? 'Phase 2 daily rotation video'
-              : 'Full Program long-form video',
+              : playbackCategory === 'custom'
+                ? 'Custom category daily rotation video'
+                : 'Full Program long-form video',
   };
 }
 

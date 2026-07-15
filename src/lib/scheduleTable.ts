@@ -188,13 +188,16 @@ export function normalizeDeploymentScheduleTable(
         const label = asString(column.label ?? column.name ?? key) || key;
         const group = normalizeColumnGroup(column.group);
         const libraryType = asString(column.libraryType ?? column.library_type) || null;
+        const categoryId = asString(column.categoryId ?? column.category_id) || null;
         const variantLabel = getScheduleColumnVariantLabel({
           key,
           label,
           libraryType,
           variantLabel: asString(column.variantLabel) || null,
         });
-        const phase1 = isPhase1Column(key, label, libraryType ?? '', group);
+        // Prefer API group; only legacy Phase-1 multi-column grouping when no categoryId.
+        const phase1 =
+          !categoryId && isPhase1Column(key, label, libraryType ?? '', group);
         const resolvedGroup = group || (phase1 ? 'Phase 1' : '');
 
         return {
@@ -202,6 +205,8 @@ export function normalizeDeploymentScheduleTable(
           label,
           group: resolvedGroup || null,
           libraryType,
+          categoryId,
+          isRotating: Boolean(column.isRotating),
           variantLabel,
         };
       })

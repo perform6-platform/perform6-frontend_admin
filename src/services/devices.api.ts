@@ -106,6 +106,45 @@ export async function getDeviceById(id: string): Promise<RegisteredDevice> {
   return data.data;
 }
 
+export interface DeviceLifecycleResult {
+  action: 'disconnect' | 'disable' | 'attach';
+  deviceId?: string;
+  deviceIds?: string[];
+  deploymentId?: string | null;
+  deploymentName?: string;
+  cluster?: boolean;
+  activationStatus?: string;
+  rePairAllowed?: boolean;
+}
+
+/** POST /devices/:id/disconnect */
+export async function disconnectDevice(deviceId: string): Promise<DeviceLifecycleResult> {
+  const { data } = await apiClient.post<ApiResponse<DeviceLifecycleResult>>(
+    `/devices/${deviceId}/disconnect`,
+  );
+  return data.data;
+}
+
+/** POST /devices/:id/disable — requires disconnect first. */
+export async function disableDevice(deviceId: string): Promise<DeviceLifecycleResult> {
+  const { data } = await apiClient.post<ApiResponse<DeviceLifecycleResult>>(
+    `/devices/${deviceId}/disable`,
+  );
+  return data.data;
+}
+
+/** POST /devices/:id/attach — reconnect to an existing deployment. */
+export async function attachDevice(
+  deviceId: string,
+  deploymentId: string,
+): Promise<DeviceLifecycleResult> {
+  const { data } = await apiClient.post<ApiResponse<DeviceLifecycleResult>>(
+    `/devices/${deviceId}/attach`,
+    { deploymentId },
+  );
+  return data.data;
+}
+
 // ---------------------------------------------------------------------------
 // Device-auth endpoints
 // ---------------------------------------------------------------------------

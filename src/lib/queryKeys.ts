@@ -51,6 +51,10 @@ export const queryKeys = {
     all: ['programs'] as const,
     detail: (id: string) => ['programs', id] as const,
   },
+  categories: {
+    all: ['categories'] as const,
+    detail: (id: string) => ['categories', id] as const,
+  },
   rotation: {
     all: ['rotation'] as const,
     current: ['rotation', 'current'] as const,

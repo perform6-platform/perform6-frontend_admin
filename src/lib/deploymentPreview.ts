@@ -109,11 +109,16 @@ export function parseDeploymentPreviewSlots(preview: DeploymentPreview | null | 
       .map((slot) => ({
         key: slot.key,
         label: resolveSlotLabel(slot),
-        libraryType: slot.libraryType,
-        isRotating: isRotatingPreviewSlot(slot.key) || slot.libraryType?.includes('PHASE') || slot.libraryType === 'FULL_PROGRAM',
+        libraryType: slot.libraryType ?? undefined,
+        isRotating:
+          typeof slot.isRotating === 'boolean'
+            ? slot.isRotating
+            : isRotatingPreviewSlot(slot.key) ||
+              Boolean(slot.libraryType?.includes('PHASE')) ||
+              slot.libraryType === 'FULL_PROGRAM',
         items: readSlotItems(preview, slot.key),
       }))
-      .filter((slot) => slot.items.length > 0);
+      .filter((slot) => slot.items.length > 0 || Boolean(slot.label));
   }
 
   return FALLBACK_SLOT_KEYS.map((key) => ({

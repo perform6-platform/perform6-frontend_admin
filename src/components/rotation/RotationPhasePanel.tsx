@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import type { CategoryGroup } from '../../constants/contentPlayback';
 import { getPlaybackCategoryForContent, getPlaybackRule } from '../../constants/contentPlayback';
 import type { ContentCategoryId } from '../../constants/contentPlayback';
@@ -46,18 +45,7 @@ export function RotationPhasePanel({
 
   if (totalVideos === 0) {
     return (
-      <EmptyState
-        title="No videos in this phase"
-        description="Upload videos in Content Library for this program, then assign which day each video plays."
-        action={
-          <Link
-            to="/content-library"
-            className="text-body-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
-          >
-            Go to Content Library
-          </Link>
-        }
-      />
+      <EmptyState message="No videos in this phase — upload in Content Library, then assign days here." />
     );
   }
 
@@ -74,9 +62,10 @@ export function RotationPhasePanel({
       </section>
 
       {categorySections.map(({ category, videos }) => {
-        const categoryUsesRotation = usesRotationForPlayback(
-          getPlaybackCategoryForContent(category.id),
-        );
+        const categoryUsesRotation =
+          group.playbackCategory === 'custom'
+            ? true
+            : usesRotationForPlayback(getPlaybackCategoryForContent(category.id));
 
         return (
           <section key={category.id} className={cn(CARD_SURFACE_CLASS, 'p-4 sm:p-5')}>

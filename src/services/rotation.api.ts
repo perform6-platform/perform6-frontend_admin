@@ -8,6 +8,7 @@ import type {
   DeviceCurrentRotation,
   DeviceRotationStartDate,
   GlobalRotation,
+  ProgramRotationPatchPayload,
   RotationBulkPayload,
   RotationBulkSection,
   SetRotationStartDatePayload,
@@ -39,6 +40,18 @@ export async function patchRotationBulk(
     payload,
   );
   return normalizeRotationPrograms(data.data);
+}
+
+/** PATCH /rotation/programs/:programId — custom category day assignments. */
+export async function patchRotationProgram(
+  programId: string,
+  payload: ProgramRotationPatchPayload,
+): Promise<unknown> {
+  const { data } = await apiClient.patch<ApiResponse<unknown>>(
+    `/rotation/programs/${programId}`,
+    payload,
+  );
+  return data.data;
 }
 
 /** PATCH /rotation/devices/:deviceId/start-date — step 6 (PLATFORM_ADMIN). */

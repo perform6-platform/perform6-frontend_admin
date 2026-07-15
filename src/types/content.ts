@@ -20,7 +20,7 @@ export interface ProgramSession {
 export interface Program {
   id: string;
   name: string;
-  libraryType: string;
+  libraryType: string | null;
   description: string | null;
   durationMinutes: number | null;
   cycleDays: number | null;

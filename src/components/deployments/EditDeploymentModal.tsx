@@ -1,7 +1,13 @@
-import { useEffect, useState } from 'react';
-import { Button, Dropdown, Input, Modal, ModalBody } from '../ui';
-import { useCategoryVariants, useUpdateDeployment } from '../../hooks/useDeployments';
+import { useEffect, useMemo, useState } from 'react';
+import { Button, Dropdown, Input, Modal, ModalBody, SectionLabel } from '../ui';
+import {
+  useCategoryVariants,
+  useDeployment,
+  useUpdateDeployment,
+} from '../../hooks/useDeployments';
+import { useCategories } from '../../hooks/useCategories';
 import { useToast } from '../../context/ToastContext';
+import { DEFAULT_DEPLOYMENT_SCREENS } from '../../lib/screenCategoryDefaults';
 import { getApiErrorMessage } from '../../services/axios';
 import type {
   BrandingMode,
@@ -22,6 +28,10 @@ const brandingOptions = [
   { value: 'NONE', label: 'None' },
 ];
 
+function isDefaultDeployment(type: string | undefined): boolean {
+  return (type ?? '').toUpperCase().includes('DEFAULT');
+}
+
 export function EditDeploymentModal({
   open,
   deployment,
@@ -30,31 +40,68 @@ export function EditDeploymentModal({
 }: EditDeploymentModalProps) {
   const { showToast } = useToast();
   const { mutateAsync: updateDeployment, isPending } = useUpdateDeployment();
+  const { data: detail } = useDeployment(open && deployment ? deployment.id : null);
+  const { data: contentCategories = [] } = useCategories();
+
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [fieldCategory, setFieldCategory] = useState('');
   const [exerciseVariant, setExerciseVariant] = useState('');
   const [brandingMode, setBrandingMode] = useState<BrandingMode>('PLATFORM_DEFAULT');
   const [brandingId, setBrandingId] = useState('');
+  const [screenCategories, setScreenCategories] = useState<Record<string, string>>({});
+
+  const source = detail ?? deployment;
+  const showScreenEditor = isDefaultDeployment(source?.deploymentType);
 
   const { data: variants = [] } = useCategoryVariants(fieldCategory || null);
 
+  const categoryOptions = useMemo(
+    () =>
+      contentCategories.map((category) => ({
+        value: category.id,
+        label: `${category.name}${category.isSystem ? '' : ' (custom)'}`,
+      })),
+    [contentCategories],
+  );
+
   useEffect(() => {
-    if (!deployment || !open) return;
-    setName(deployment.name ?? '');
+    if (!source || !open) return;
+    setName(source.name ?? '');
     setDescription(
-      typeof deployment.description === 'string' ? deployment.description : '',
+      typeof source.description === 'string' ? source.description : '',
     );
-    setFieldCategory(deployment.fieldCategory ?? '');
-    setExerciseVariant(deployment.exerciseVariant ?? '');
-    const mode = deployment.config?.brandingMode;
+    setFieldCategory(source.fieldCategory ?? '');
+    setExerciseVariant(source.exerciseVariant ?? '');
+    const mode = source.config?.brandingMode;
     setBrandingMode(
       mode === 'CUSTOM' || mode === 'NONE' || mode === 'PLATFORM_DEFAULT'
         ? mode
         : 'PLATFORM_DEFAULT',
     );
-    setBrandingId('');
-  }, [deployment, open]);
+    const linkedBrandingId = source.branding?.[0]?.id;
+    setBrandingId(typeof linkedBrandingId === 'string' ? linkedBrandingId : '');
+
+    const screens =
+      source.screens ??
+      source.screenAssignments?.map((assignment) => ({
+        screenKey: assignment.screenKey,
+        categoryId: assignment.categoryId ?? assignment.category?.id ?? null,
+      })) ??
+      [];
+
+    const nextScreens: Record<string, string> = {
+      SCREEN_1: '',
+      SCREEN_2: '',
+      SCREEN_3: '',
+    };
+    for (const screen of screens) {
+      if (screen.screenKey && screen.categoryId) {
+        nextScreens[screen.screenKey] = screen.categoryId;
+      }
+    }
+    setScreenCategories(nextScreens);
+  }, [source, open]);
 
   async function handleSave() {
     if (!deployment) return;
@@ -71,11 +118,23 @@ export function EditDeploymentModal({
           : undefined,
     };
 
+    if (showScreenEditor) {
+      const picks = DEFAULT_DEPLOYMENT_SCREENS.filter((screen) =>
+        Boolean(screenCategories[screen.screenKey]),
+      ).map((screen) => ({
+        screenKey: screen.screenKey,
+        categoryId: screenCategories[screen.screenKey]!,
+      }));
+      if (picks.length === DEFAULT_DEPLOYMENT_SCREENS.length) {
+        payload.screenCategories = picks;
+      }
+    }
+
     try {
       await updateDeployment({ id: deployment.id, payload });
       showToast({
         title: 'Deployment updated',
-        message: 'Changes will apply on the next device sync.',
+        message: 'Changes apply on the next device sync.',
         variant: 'success',
       });
       onSaved?.();
@@ -92,7 +151,8 @@ export function EditDeploymentModal({
       open={open}
       onClose={onClose}
       title="Edit deployment"
-      description="Update field, variant, branding, or display name."
+      description="Update field, variant, branding, screens, or display name."
+      size="lg"
       footer={
         <>
           <Button
@@ -186,6 +246,36 @@ export function EditDeploymentModal({
               onChange={(event) => setBrandingId(event.target.value)}
               placeholder="UUID from branding upload"
             />
+          )}
+
+          {showScreenEditor && (
+            <div className="space-y-3 rounded-lg border border-surface-border p-3">
+              <SectionLabel className="block">Screen content</SectionLabel>
+              <p className="text-caption text-content-secondary">
+                Change which parent category plays on each screen.
+              </p>
+              {DEFAULT_DEPLOYMENT_SCREENS.map((screen) => (
+                <div key={screen.screenKey}>
+                  <p className="mb-1 text-xs font-medium text-content-muted">
+                    {screen.label}
+                  </p>
+                  <Dropdown
+                    options={[
+                      { value: '', label: 'Select category…' },
+                      ...categoryOptions,
+                    ]}
+                    value={screenCategories[screen.screenKey] ?? ''}
+                    onChange={(value) =>
+                      setScreenCategories((current) => ({
+                        ...current,
+                        [screen.screenKey]: value,
+                      }))
+                    }
+                    fullWidth
+                  />
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </ModalBody>

@@ -20,6 +20,7 @@ export interface MediaAsset {
   title: string;
   mediaType: MediaType;
   libraryType?: LibraryType | null;
+  programId?: string | null;
   durationSeconds: number | null;
   fileSize: string;
   thumbnailUrl: string | null;
@@ -43,14 +44,16 @@ export interface MediaVersion {
 export interface MediaUploadResult {
   asset: MediaAsset;
   version: MediaVersion;
-  libraryType?: LibraryType;
+  libraryType?: LibraryType | null;
+  programId?: string | null;
   processingJobId?: string;
 }
 
 export interface UploadMediaPayload {
   file: File;
   title: string;
-  libraryType: LibraryType;
+  libraryType?: LibraryType;
+  programId?: string;
   /** Optional — if omitted, backend extracts a frame (~1s) via ffmpeg for videos. */
   thumbnail?: File;
   mediaType?: MediaType;
