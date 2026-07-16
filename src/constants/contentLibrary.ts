@@ -28,14 +28,18 @@ export interface ContentItem {
 }
 
 export const defaultContentThumbnail =
-  'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=480&h=270&fit=crop';
+  'data:image/svg+xml,' +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="480" height="270" viewBox="0 0 480 270">
+      <rect fill="#e5e7eb" width="480" height="270"/>
+      <text x="240" y="140" text-anchor="middle" fill="#9ca3af" font-family="system-ui,sans-serif" font-size="16">No thumbnail</text>
+    </svg>`,
+  );
 
-export const sampleContentVideoUrl =
-  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
-
+/** Play URL from media API only — no sample / mock fallback. */
 export function getContentVideoUrl(item: ContentItem): string | null {
   if (item.mediaType !== 'video') return null;
-  return item.videoUrl ?? sampleContentVideoUrl;
+  return item.videoUrl?.trim() || null;
 }
 
 export const contentTypeTabs: { value: ContentTypeFilter; label: string }[] = [

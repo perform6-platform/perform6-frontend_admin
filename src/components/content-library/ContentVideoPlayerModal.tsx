@@ -45,7 +45,9 @@ export function ContentVideoPlayerModal({ open, item, onClose }: ContentVideoPla
           Your browser does not support video playback.
         </video>
       ) : (
-        <p className="text-body-sm text-content-secondary">This item cannot be played.</p>
+        <p className="text-body-sm text-content-secondary">
+          No playable video URL from the media library. Re-upload or wait until processing finishes.
+        </p>
       )}
     </Modal>
   );
