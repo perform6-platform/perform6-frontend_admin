@@ -70,6 +70,10 @@ export const queryKeys = {
     fleetHealth: ['monitoring', 'fleet', 'health'] as const,
     analytics: (query: unknown) => ['monitoring', 'analytics', query] as const,
   },
+  sync: {
+    fleet: ['sync', 'fleet'] as const,
+    deviceDetail: (id: string) => ['sync', 'devices', id] as const,
+  },
   releases: {
     all: ['releases'] as const,
   },

@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router-dom';
 import Categories from './pages/Categories';
 import ContentLibrary from './pages/ContentLibrary';
+import ContentSyncing from './pages/ContentSyncing';
 import Dashboard from './pages/Dashboard';
 import Devices from './pages/Devices';
 import Locations from './pages/Locations';
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/devices" element={<Devices />} />
           <Route path="/device-monitoring" element={<DeviceMonitoring />} />
+          <Route path="/content-syncing" element={<ContentSyncing />} />
           <Route path="/content-library" element={<ContentLibrary />} />
           <Route path="/categories" element={<Categories />} />
           <Route path="/rotation" element={<Rotation />} />

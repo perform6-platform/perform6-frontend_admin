@@ -126,6 +126,11 @@ export default function Rotation() {
           items,
           categoryGroups,
         );
+        if (payload.libraries.length === 0) {
+          throw new Error(
+            'No videos assigned yet. Assign at least one video to a day before saving.',
+          );
+        }
         await patchBulk({ section, payload });
       }
 

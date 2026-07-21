@@ -2,9 +2,8 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { ChevronLeft, ChevronRight, LogOut, X } from 'lucide-react';
-import perform6SidebarIcon from '../../assets/sidebar-logo-icon.png';
+import perform6Logo from '../../assets/Perform_6_trademark_BLACK.png';
 import { mainNavigation } from '../../constants/navigation';
-import { PERFORM6_LOGO_URL } from '../../constants/branding';
 import { useMobileNav } from '../../context/MobileNavContext';
 import { useSidebarCollapse } from '../../context/SidebarCollapseContext';
 import { useLogout } from '../../hooks/useLogout';
@@ -164,21 +163,17 @@ export function SidebarPanel({
         )}
         <div className={cn('min-w-0', collapsed ? 'flex justify-center' : 'flex-1')}>
           {collapsed ? (
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white p-1 shadow-sm">
-              <img
-                src={perform6SidebarIcon}
-                alt="Perform6"
-                className="h-full w-full rounded-full object-cover"
-              />
-            </div>
+            <img
+              src={perform6Logo}
+              alt="Perform6"
+              className="h-10 w-10 object-cover object-left"
+            />
           ) : (
-            <div className="inline-flex  bg-white px-2.5 py-1.5">
-              <img
-                src={PERFORM6_LOGO_URL}
-                alt="Perform6"
-                className="h-9 w-auto max-w-[148px] object-contain object-left"
-              />
-            </div>
+            <img
+              src={perform6Logo}
+              alt="Perform6"
+              className="h-10 w-auto max-w-[180px] object-contain object-left"
+            />
           )}
         </div>
         {showClose && onClose && !collapsed && (
