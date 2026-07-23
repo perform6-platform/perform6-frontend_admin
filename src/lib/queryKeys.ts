@@ -77,4 +77,7 @@ export const queryKeys = {
   releases: {
     all: ['releases'] as const,
   },
+  startupFiles: {
+    all: ['startup-files'] as const,
+  },
 } as const;

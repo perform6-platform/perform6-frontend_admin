@@ -7,6 +7,7 @@ import {
   HardDriveDownload,
   LayoutDashboard,
   Monitor,
+  Package,
   RotateCw,
   Upload,
 } from 'lucide-react';
@@ -28,6 +29,7 @@ export const mainNavigation: NavItemConfig[] = [
   { label: 'Rotation', to: '/rotation', icon: RotateCw },
   { label: 'Schedule', to: '/rotation-schedule', icon: CalendarDays },
   { label: 'Deployments', to: '/deployments', icon: Upload },
+  { label: 'Startup Files', to: '/startup-files', icon: Package },
 ];
 
 export const quickActions = [

@@ -10,6 +10,7 @@ import Rotation from './pages/Rotation';
 import RotationSchedule from './pages/RotationSchedule';
 import Login from './pages/Login';
 import Profile from './pages/Profile';
+import StartupFiles from './pages/StartupFiles';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -28,6 +29,7 @@ export default function App() {
           <Route path="/rotation" element={<Rotation />} />
           <Route path="/rotation-schedule" element={<RotationSchedule />} />
           <Route path="/deployments" element={<Deployments />} />
+          <Route path="/startup-files" element={<StartupFiles />} />
           <Route path="/profile" element={<Profile />} />
         </Route>
       </Route>
