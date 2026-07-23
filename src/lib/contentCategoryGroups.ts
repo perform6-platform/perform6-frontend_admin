@@ -15,6 +15,7 @@ const SYSTEM_SLUG_ORDER = [
   'phase-1',
   'phase-2',
   'full-program',
+  '15-minutes',
 ] as const;
 
 const SLUG_TO_PLAYBACK: Record<string, SystemPlaybackCategoryId> = {
@@ -28,7 +29,9 @@ const SLUG_TO_PLAYBACK: Record<string, SystemPlaybackCategoryId> = {
 export function playlistAxisLabel(
   fieldCategory: string | null | undefined,
   exerciseVariant: string | null | undefined,
+  playlistKey?: string | null,
 ): string {
+  if (playlistKey) return `Program ${playlistKey}`;
   if (!fieldCategory) return 'All deployments';
   const fieldLabel = fieldCategory === 'FITNESS' ? 'Fitness' : 'Golf';
   if (!exerciseVariant) return fieldLabel;
@@ -74,7 +77,11 @@ function categoryToGroup(category: ContentCategory): CategoryGroup {
     scope: category.scope,
     children: playlists.map((playlist) => ({
       id: playlistChildId(playlist),
-      label: playlistAxisLabel(playlist.fieldCategory, playlist.exerciseVariant),
+      label: playlistAxisLabel(
+        playlist.fieldCategory,
+        playlist.exerciseVariant,
+        playlist.playlistKey,
+      ),
       programId: playlist.id,
     })),
   };
@@ -135,6 +142,8 @@ export function scopePlaylistCount(scope: string): number {
       return 2;
     case 'BY_FIELD_AND_VARIANT':
       return 4;
+    case 'BY_NAMED_PLAYLIST':
+      return 4;
     default:
       return 1;
   }
@@ -148,6 +157,8 @@ export function scopeLabel(scope: string): string {
       return 'By field (Fitness / Golf)';
     case 'BY_FIELD_AND_VARIANT':
       return 'By field + variant (4 playlists)';
+    case 'BY_NAMED_PLAYLIST':
+      return 'Named programs (A–D)';
     default:
       return scope;
   }

@@ -4,7 +4,6 @@ import ContentLibrary from './pages/ContentLibrary';
 import ContentSyncing from './pages/ContentSyncing';
 import Dashboard from './pages/Dashboard';
 import Devices from './pages/Devices';
-import Locations from './pages/Locations';
 import DeviceMonitoring from './pages/DeviceMonitoring';
 import Deployments from './pages/Deployments';
 import Rotation from './pages/Rotation';
@@ -29,7 +28,6 @@ export default function App() {
           <Route path="/rotation" element={<Rotation />} />
           <Route path="/rotation-schedule" element={<RotationSchedule />} />
           <Route path="/deployments" element={<Deployments />} />
-          <Route path="/locations" element={<Locations />} />
           <Route path="/profile" element={<Profile />} />
         </Route>
       </Route>

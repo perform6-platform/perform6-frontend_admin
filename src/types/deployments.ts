@@ -40,8 +40,8 @@ export interface DeploymentPreviewSlotData {
 /** GET /deployments/preview — wizard shows all assigned rotation videos per slot. */
 export interface DeploymentPreview {
   deploymentType: string;
-  fieldCategory: string;
-  exerciseVariant: string;
+  fieldCategory?: string;
+  exerciseVariant?: string;
   rotationStartDate: string | null;
   rotationDay: number | null;
   slots: PreviewSlot[];
@@ -55,13 +55,17 @@ export interface DeploymentPreview {
 
 export interface DeploymentPreviewQuery {
   deploymentType: string;
-  fieldCategory: string;
-  exerciseVariant: string;
+  fieldCategory?: string;
+  exerciseVariant?: string;
   rotationStartDate?: string;
   /** Optional single-day filter — omit in wizard to load the full rotation list. */
   day?: number;
   /** DEFAULT_DEPLOYMENT: selected parent categories per screen. */
-  screenCategories?: Array<{ screenKey: string; categoryId: string }>;
+  screenCategories?: Array<{
+    screenKey: string;
+    categoryId: string;
+    playlistKey?: string;
+  }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -74,32 +78,52 @@ export interface Hd226ClusterMember {
   deviceName?: string;
 }
 
+/** Gym/site owner contact stored on the device for offline prefetch emails. */
+export interface DeviceSiteContact {
+  ownerName: string;
+  ownerEmail: string;
+  siteAddress?: string;
+  ownerPhone?: string;
+}
+
 /** Single-player register (XC4055 / XT2145). */
 export interface RegisterSinglePayload {
   pairingId: string;
   deploymentType: string;
-  fieldCategory: string;
-  exerciseVariant: string;
+  fieldCategory?: string;
+  exerciseVariant?: string;
   rotationStartDate?: string;
   deviceName?: string;
   hardwareProfile?: HardwareProfileCode;
   brandingMode: BrandingMode;
   brandingId?: string;
-  /** DEFAULT_DEPLOYMENT: per-screen content category (program id). */
-  screenCategories?: Array<{ screenKey: string; categoryId: string }>;
+  /** DEFAULT_DEPLOYMENT: per-screen content category + optional named program. */
+  screenCategories?: Array<{
+    screenKey: string;
+    categoryId: string;
+    playlistKey?: string;
+  }>;
+  /** Gym/site owner — used for offline prefetch emails (stored on device). */
+  siteContact?: DeviceSiteContact;
 }
 
-/** HD226 3-player cluster register. */
+/** HD226 1–N player cluster register. */
 export interface RegisterClusterPayload {
   hardwareProfile: 'HD226';
   members: Hd226ClusterMember[];
   deploymentType: string;
-  fieldCategory: string;
-  exerciseVariant: string;
+  fieldCategory?: string;
+  exerciseVariant?: string;
   rotationStartDate?: string;
   brandingMode: BrandingMode;
   brandingId?: string;
-  screenCategories?: Array<{ screenKey: string; categoryId: string }>;
+  screenCategories?: Array<{
+    screenKey: string;
+    categoryId: string;
+    playlistKey?: string;
+  }>;
+  /** Applied to every cluster member device. */
+  siteContact?: DeviceSiteContact;
 }
 
 export type RegisterDeploymentPayload = RegisterSinglePayload | RegisterClusterPayload;
@@ -113,8 +137,8 @@ export interface RegisterDeploymentResult {
   pairingId?: string;
   screenCount?: number;
   deploymentType: string;
-  fieldCategory: string;
-  exerciseVariant: string;
+  fieldCategory?: string;
+  exerciseVariant?: string;
   rotationStartDate: string | null;
   playbackManifest?: PlaybackManifest;
   [key: string]: unknown;
@@ -198,6 +222,7 @@ export interface ScreenAssignment {
   categoryId?: string | null;
   categoryName?: string | null;
   categorySlug?: string | null;
+  playlistKey?: string | null;
   sortOrder: number;
   metadata?: Record<string, unknown>;
   category?: { id: string; name: string; slug?: string } | null;
@@ -248,6 +273,7 @@ export interface DeploymentScreenSummary {
   categoryId: string | null;
   categoryName: string | null;
   categorySlug?: string | null;
+  playlistKey?: string | null;
   sortOrder?: number;
 }
 
@@ -256,8 +282,8 @@ export interface DeploymentEntity {
   name?: string;
   description?: string | null;
   deploymentType: string;
-  fieldCategory: string;
-  exerciseVariant: string;
+  fieldCategory?: string;
+  exerciseVariant?: string;
   rotationStartDate?: string | null;
   config?: Record<string, unknown>;
   devices?: Array<{
@@ -305,11 +331,15 @@ export interface DeploymentListResult {
 export interface UpdateDeploymentPayload {
   name?: string;
   description?: string;
-  fieldCategory?: string;
-  exerciseVariant?: string;
+  fieldCategory?: string | null;
+  exerciseVariant?: string | null;
   brandingMode?: BrandingMode;
   brandingId?: string;
-  screenCategories?: Array<{ screenKey: string; categoryId: string }>;
+  screenCategories?: Array<{
+    screenKey: string;
+    categoryId: string;
+    playlistKey?: string;
+  }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -320,6 +350,9 @@ export interface DeploymentScheduleTableQuery {
   rotationStartDate: string;
   days?: number;
   fromDate?: string;
+  /** HD226: scope columns to this device’s bound screen only */
+  deviceId?: string;
+  clusterMember?: string;
 }
 
 export interface DeploymentScheduleTableColumn {
@@ -351,8 +384,8 @@ export interface DeploymentScheduleTableRow {
 export interface DeploymentScheduleTable {
   deploymentId: string;
   deploymentType: string;
-  fieldCategory: string;
-  exerciseVariant: string;
+  fieldCategory?: string;
+  exerciseVariant?: string;
   rotationStartDate: string;
   days: number;
   columns: DeploymentScheduleTableColumn[];

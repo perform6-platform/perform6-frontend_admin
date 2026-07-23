@@ -32,9 +32,16 @@ const MEDIA_LIST_QUERY = {
 export function ContentProvider({ children }: { children: ReactNode }) {
   const { data, isLoading, isError, refetch } = useMediaAssets(MEDIA_LIST_QUERY, {
     refetchInterval: (query) => {
+      if (query.state.error) return false;
       const items = query.state.data?.items ?? [];
       const processing = items.some((asset) => asset.status === 'PROCESSING');
-      return processing ? 3000 : false;
+      // Avoid hammering GET /media while uploads process (was 3s → easy 429).
+      return processing ? 5_000 : false;
+    },
+    retry: (failureCount, error) => {
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      if (status === 429) return false;
+      return failureCount < 2;
     },
   });
 

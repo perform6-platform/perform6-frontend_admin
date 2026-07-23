@@ -45,6 +45,7 @@ export function useUpdateDeployment() {
     onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.deployments.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.deployments.detail(vars.id) });
+      queryClient.invalidateQueries({ queryKey: ['devices'] });
     },
   });
 }
@@ -73,7 +74,7 @@ export function useDeploymentPreview(query: DeploymentPreviewQuery | null) {
   return useQuery({
     queryKey: queryKeys.deployments.preview(query),
     queryFn: () => getDeploymentPreview(query as DeploymentPreviewQuery),
-    enabled: Boolean(query?.deploymentType && query?.fieldCategory && query?.exerciseVariant),
+    enabled: Boolean(query?.deploymentType),
   });
 }
 

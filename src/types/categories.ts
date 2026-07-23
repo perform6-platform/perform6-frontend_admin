@@ -1,6 +1,12 @@
 export type DayPlaybackMode = 'LOOP' | 'ONCE';
 
-export type CategoryScope = 'GLOBAL' | 'BY_FIELD' | 'BY_FIELD_AND_VARIANT';
+export type CategoryScope =
+  | 'GLOBAL'
+  | 'BY_FIELD'
+  | 'BY_FIELD_AND_VARIANT'
+  | 'BY_NAMED_PLAYLIST';
+
+export type PlaylistKey = 'A' | 'B' | 'C' | 'D';
 
 export type FieldCategory = 'FITNESS' | 'GOLF';
 export type ExerciseVariant = 'WALL' | 'NO_WALL';
@@ -12,6 +18,7 @@ export interface CategoryPlaylist {
   libraryType: string | null;
   fieldCategory: FieldCategory | null;
   exerciseVariant: ExerciseVariant | null;
+  playlistKey?: PlaylistKey | null;
   isRotating: boolean;
   dayPlaybackMode: DayPlaybackMode;
   sessionCount: number;

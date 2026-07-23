@@ -21,16 +21,29 @@ import {
   useDeploymentTypes,
   useRegisterDeployment,
 } from '../../hooks/useDeployments';
-import { useClaimedDevices, useDevices as useInventoryDevices } from '../../hooks/useDevices';
+import { useDevices as useInventoryDevices } from '../../hooks/useDevices';
 import { resolveStorageUrl } from '../../lib/libraryType';
 import {
   formatPreviewDuration,
   parseDeploymentPreviewSlots,
 } from '../../lib/deploymentPreview';
 import {
-  DEFAULT_DEPLOYMENT_SCREENS,
-  resolveDefaultScreenCategorySlugs,
-} from '../../lib/screenCategoryDefaults';
+  buildCategoryPalette,
+  buildDeploymentScreens,
+  categoryRequiresProgramPicker,
+  deploymentRequiresField,
+  deploymentRequiresVariant,
+  findCategoryById,
+  HD226_MAX_PLAYERS,
+  isDefaultDeploymentType,
+  isHdModel,
+  isTouchscreenDeployment,
+  isXcModel,
+  paletteLabel,
+  playlistOptionsForCategory,
+  touchscreenCategoryIds,
+  XC_SCREEN_KEYS,
+} from '../../lib/deploymentWizard';
 import { cn } from '../../lib/cn';
 import { formatDateLabel } from '../../lib/formatDateLabel';
 import { getApiErrorMessage } from '../../services/axios';
@@ -44,6 +57,7 @@ import type {
 const TOTAL_STEPS = 4;
 
 type BrandingUiMode = 'none' | 'platform' | 'custom';
+type DeviceHardwareKind = 'XC' | 'HD' | '';
 
 const brandingOptions = [
   { value: 'none', label: 'None' },
@@ -51,18 +65,28 @@ const brandingOptions = [
   { value: 'custom', label: 'Custom' },
 ] as const;
 
-const hd226Slots = [
-  { memberKey: 'DEVICE_A' as const, label: 'Start Here Player (DEVICE_A)', screenKey: 'SCREEN_1' },
-  { memberKey: 'DEVICE_B' as const, label: 'Phase 1 Player (DEVICE_B)', screenKey: 'SCREEN_2' },
-  { memberKey: 'DEVICE_C' as const, label: 'Phase 2 Player (DEVICE_C)', screenKey: 'SCREEN_3' },
-];
+type ScreenRoute = { categoryId: string; playlistKey?: string };
 
-function isHd226(model: string | null | undefined): boolean {
-  return (model ?? '').toUpperCase().includes('HD226');
+type HdPlayerRow = {
+  id: string;
+  pairingId: string;
+  categoryId: string;
+  playlistKey?: string;
+};
+
+function createHdRow(): HdPlayerRow {
+  return {
+    id: crypto.randomUUID(),
+    pairingId: '',
+    categoryId: '',
+    playlistKey: undefined,
+  };
 }
 
-function isDefaultDeployment(type: string): boolean {
-  return type === 'DEFAULT_DEPLOYMENT';
+function deviceOptionLabel(device: DeviceInventoryItem): string {
+  return `${device.deviceName || device.serialNumber || 'Device'} — ${device.model || 'Unknown'}${
+    device.location ? ` · ${device.location}` : ''
+  }`;
 }
 
 export interface NewDeploymentFormProps {
@@ -74,99 +98,175 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
   const [step, setStep] = useState(1);
 
   const [deploymentType, setDeploymentType] = useState('');
+  const [paletteIds, setPaletteIds] = useState<string[]>([]);
   const [fieldCategory, setFieldCategory] = useState('');
   const [exerciseVariant, setExerciseVariant] = useState('');
   const [rotationStartDate, setRotationStartDate] = useState<Date | undefined>(new Date());
-  const [deviceName, setDeviceName] = useState('');
 
-  const [selectedPairingId, setSelectedPairingId] = useState('');
-  const [clusterMembers, setClusterMembers] = useState<Record<string, string>>({
-    DEVICE_A: '',
-    DEVICE_B: '',
-    DEVICE_C: '',
+  const [deviceKind, setDeviceKind] = useState<DeviceHardwareKind>('');
+  const [xcPairingId, setXcPairingId] = useState('');
+  const [xcDeviceName, setXcDeviceName] = useState('');
+  const [xcScreens, setXcScreens] = useState<Record<string, ScreenRoute>>({
+    SCREEN_1: { categoryId: '' },
+    SCREEN_2: { categoryId: '' },
+    SCREEN_3: { categoryId: '' },
   });
-
-  const [screenCategories, setScreenCategories] = useState<Record<string, string>>({
-    SCREEN_1: '',
-    SCREEN_2: '',
-    SCREEN_3: '',
-  });
+  const [hdRows, setHdRows] = useState<HdPlayerRow[]>([createHdRow()]);
 
   const [brandingUiMode, setBrandingUiMode] = useState<BrandingUiMode>('none');
   const [companyName, setCompanyName] = useState('');
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
+  const [ownerName, setOwnerName] = useState('');
+  const [ownerEmail, setOwnerEmail] = useState('');
+  const [siteAddress, setSiteAddress] = useState('');
+  const [ownerPhone, setOwnerPhone] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data: types = [], isLoading: typesLoading } = useDeploymentTypes();
-  const { data: categories = [], isLoading: categoriesLoading } = useDeploymentCategories();
+  const { data: fieldOptions = [], isLoading: fieldLoading } = useDeploymentCategories();
   const { data: variants = [], isLoading: variantsLoading } = useCategoryVariants(
     fieldCategory || null,
   );
   const { data: contentCategories = [], isLoading: contentCategoriesLoading } = useCategories();
 
-  const { data: claimedInventory } = useClaimedDevices({ limit: 100 });
-  const { data: hd226Inventory } = useInventoryDevices({
-    state: 'claimed',
-    hardwareProfile: 'HD226',
-    limit: 100,
-  });
+  const { data: claimedInventory } = useInventoryDevices({ state: 'claimed', limit: 100 });
+  const { data: platformBranding } = usePlatformDefaultBranding();
+  const { mutateAsync: createBranding } = useCreateBranding();
+  const { mutateAsync: registerDeployment } = useRegisterDeployment();
+
+  const claimedDevices = claimedInventory?.items ?? [];
+  const isDefault = isDefaultDeploymentType(deploymentType);
+  const isTouchscreen = isTouchscreenDeployment(deploymentType);
+
+  const palette = useMemo(
+    () => buildCategoryPalette(contentCategories),
+    [contentCategories],
+  );
+
+  const touchCategoryIds = useMemo(
+    () => touchscreenCategoryIds(contentCategories),
+    [contentCategories],
+  );
+
+  const selectedPaletteCategories = useMemo(
+    () => contentCategories.filter((category) => paletteIds.includes(category.id)),
+    [contentCategories, paletteIds],
+  );
+
+  const paletteOptions = useMemo(
+    () =>
+      selectedPaletteCategories.map((category) => ({
+        value: category.id,
+        label: paletteLabel(category),
+      })),
+    [selectedPaletteCategories],
+  );
+
+  const xcDevices = useMemo(
+    () => claimedDevices.filter((device) => isXcModel(device.model)),
+    [claimedDevices],
+  );
+
+  const hdDevices = useMemo(
+    () => claimedDevices.filter((device) => isHdModel(device.model)),
+    [claimedDevices],
+  );
+
+  const selectedXcDevice = useMemo(
+    () => xcDevices.find((device) => device.pairingId === xcPairingId),
+    [xcDevices, xcPairingId],
+  );
+
+  const selectedClaimedDevice = useMemo(
+    () => claimedDevices.find((device) => device.pairingId === xcPairingId),
+    [claimedDevices, xcPairingId],
+  );
+
+  const screenCategoryPayload = useMemo(() => {
+    if (!isDefault) return undefined;
+
+    if (deviceKind === 'XC') {
+      return XC_SCREEN_KEYS.map((screenKey) => {
+        const route = xcScreens[screenKey] ?? { categoryId: '' };
+        return {
+          screenKey,
+          categoryId: route.categoryId,
+          ...(route.playlistKey ? { playlistKey: route.playlistKey } : {}),
+        };
+      }).filter((entry) => Boolean(entry.categoryId));
+    }
+
+    if (deviceKind === 'HD') {
+      return hdRows
+        .map((row, index) => {
+          const screen = buildDeploymentScreens(hdRows.length)[index];
+          if (!screen || !row.categoryId) return null;
+          return {
+            screenKey: screen.screenKey,
+            categoryId: row.categoryId,
+            ...(row.playlistKey ? { playlistKey: row.playlistKey } : {}),
+          };
+        })
+        .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+    }
+
+    return undefined;
+  }, [isDefault, deviceKind, xcScreens, hdRows]);
+
+  // Prefer categories actually assigned to screens; fall back to palette on step 1.
+  // Touchscreen always uses fixed system categories (default / start-here / phase-1…).
+  const assignedCategoryIds = useMemo(() => {
+    if (isTouchscreen) return touchCategoryIds;
+    if (!screenCategoryPayload?.length) return paletteIds;
+    return [...new Set(screenCategoryPayload.map((entry) => entry.categoryId))];
+  }, [isTouchscreen, touchCategoryIds, screenCategoryPayload, paletteIds]);
+
+  const needsField = useMemo(
+    () =>
+      (isDefault || isTouchscreen) &&
+      deploymentRequiresField(contentCategories, assignedCategoryIds),
+    [isDefault, isTouchscreen, contentCategories, assignedCategoryIds],
+  );
+
+  const needsVariant = useMemo(
+    () =>
+      (isDefault || isTouchscreen) &&
+      deploymentRequiresVariant(contentCategories, assignedCategoryIds),
+    [isDefault, isTouchscreen, contentCategories, assignedCategoryIds],
+  );
 
   const previewQuery = useMemo(() => {
-    if (!deploymentType || !fieldCategory || !exerciseVariant) return null;
-
-    const screenCategoryPayload =
-      isDefaultDeployment(deploymentType) &&
-      DEFAULT_DEPLOYMENT_SCREENS.every((screen) =>
-        Boolean(screenCategories[screen.screenKey]),
-      )
-        ? DEFAULT_DEPLOYMENT_SCREENS.map((screen) => ({
-            screenKey: screen.screenKey,
-            categoryId: screenCategories[screen.screenKey]!,
-          }))
-        : undefined;
+    if (step < 3 || !deploymentType) return null;
+    if (needsField && !fieldCategory) return null;
+    if (needsVariant && !exerciseVariant) return null;
+    if (isDefault && (!screenCategoryPayload || screenCategoryPayload.length === 0)) {
+      return null;
+    }
 
     return {
       deploymentType,
-      fieldCategory,
-      exerciseVariant,
+      ...(fieldCategory ? { fieldCategory } : {}),
+      ...(exerciseVariant ? { exerciseVariant } : {}),
       rotationStartDate: rotationStartDate
         ? format(rotationStartDate, 'yyyy-MM-dd')
         : undefined,
       screenCategories: screenCategoryPayload,
     };
   }, [
+    step,
     deploymentType,
     fieldCategory,
     exerciseVariant,
     rotationStartDate,
-    screenCategories,
+    screenCategoryPayload,
+    isDefault,
+    needsField,
+    needsVariant,
   ]);
 
   const { data: preview, isLoading: previewLoading } = useDeploymentPreview(previewQuery);
-  const { data: platformBranding } = usePlatformDefaultBranding();
-  const { mutateAsync: createBranding } = useCreateBranding();
-  const { mutateAsync: registerDeployment } = useRegisterDeployment();
-
-  const claimedDevices = claimedInventory?.items ?? [];
-  const hd226Devices = hd226Inventory?.items ?? [];
-
-  const selectedDevice = useMemo(
-    () => claimedDevices.find((d) => d.pairingId === selectedPairingId),
-    [claimedDevices, selectedPairingId],
-  );
-
-  const isCluster = selectedDevice ? isHd226(selectedDevice.model) : false;
-  const showScreenCategoryPicker = isDefaultDeployment(deploymentType);
-
-  const contentCategoryOptions = useMemo(
-    () =>
-      contentCategories.map((category) => ({
-        value: category.id,
-        label: `${category.name}${category.isSystem ? '' : ' (custom)'}`,
-      })),
-    [contentCategories],
-  );
+  const previewSlots = useMemo(() => parseDeploymentPreviewSlots(preview), [preview]);
 
   useEffect(() => {
     if (types.length > 0 && !deploymentType) {
@@ -175,80 +275,203 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
   }, [types, deploymentType]);
 
   useEffect(() => {
-    if (categories.length > 0 && !fieldCategory) {
-      setFieldCategory(categories[0]!.value);
-    }
-  }, [categories, fieldCategory]);
+    if (!isDefault) return;
+    if (!contentCategories.length || paletteIds.length > 0) return;
+    const defaults = ['start-here', 'phase-1', 'phase-2']
+      .map((slug) => contentCategories.find((category) => category.slug === slug)?.id)
+      .filter((id): id is string => Boolean(id));
+    if (defaults.length > 0) setPaletteIds(defaults);
+  }, [isDefault, contentCategories, paletteIds.length]);
 
   useEffect(() => {
+    if (!needsField) {
+      setFieldCategory('');
+      return;
+    }
+    if (fieldOptions.length > 0 && !fieldCategory) {
+      setFieldCategory(fieldOptions[0]!.value);
+    }
+  }, [needsField, fieldOptions, fieldCategory]);
+
+  useEffect(() => {
+    if (!needsVariant) {
+      setExerciseVariant('');
+      return;
+    }
     if (variants.length > 0) {
-      const stillValid = variants.some((v) => v.value === exerciseVariant);
+      const stillValid = variants.some((variant) => variant.value === exerciseVariant);
       if (!stillValid) setExerciseVariant(variants[0]!.value);
     } else {
       setExerciseVariant('');
     }
-  }, [variants, exerciseVariant]);
+  }, [needsVariant, variants, exerciseVariant]);
 
   useEffect(() => {
-    if (selectedDevice?.deviceName && !deviceName) {
-      setDeviceName(selectedDevice.deviceName);
+    if (isDefault) {
+      if (!deviceKind) setDeviceKind('XC');
+      return;
     }
-  }, [selectedDevice, deviceName]);
+    setDeviceKind('');
+  }, [isDefault, deviceKind]);
 
   useEffect(() => {
-    if (!showScreenCategoryPicker || !fieldCategory || !exerciseVariant) return;
-    if (contentCategories.length === 0) return;
+    if (selectedXcDevice?.deviceName && !xcDeviceName) {
+      setXcDeviceName(selectedXcDevice.deviceName);
+    }
+  }, [selectedXcDevice, xcDeviceName]);
 
-    const bySlug = new Map(contentCategories.map((c) => [c.slug, c.id]));
-    const defaults = resolveDefaultScreenCategorySlugs(fieldCategory, exerciseVariant);
-    setScreenCategories({
-      SCREEN_1: bySlug.get(defaults.SCREEN_1) ?? '',
-      SCREEN_2: bySlug.get(defaults.SCREEN_2) ?? '',
-      SCREEN_3: bySlug.get(defaults.SCREEN_3) ?? '',
+  useEffect(() => {
+    setXcScreens((current) => {
+      const next = { ...current };
+      for (const screenKey of XC_SCREEN_KEYS) {
+        const route = next[screenKey];
+        if (route?.categoryId && !paletteIds.includes(route.categoryId)) {
+          next[screenKey] = { categoryId: '' };
+        }
+      }
+      return next;
     });
-  }, [showScreenCategoryPicker, fieldCategory, exerciseVariant, contentCategories]);
+    setHdRows((rows) =>
+      rows.map((row) =>
+        row.categoryId && !paletteIds.includes(row.categoryId)
+          ? { ...row, categoryId: '', playlistKey: undefined }
+          : row,
+      ),
+    );
+  }, [paletteIds]);
 
-  const deviceOptions = useMemo(
-    () =>
-      claimedDevices.map((device) => ({
-        value: device.pairingId ?? '',
-        label: `${device.deviceName || device.serialNumber || 'Device'} — ${device.model || 'Unknown'}${
-          device.location ? ` · ${device.location}` : ''
-        }`,
-      })),
-    [claimedDevices],
-  );
+  function togglePalette(categoryId: string) {
+    setPaletteIds((current) =>
+      current.includes(categoryId)
+        ? current.filter((id) => id !== categoryId)
+        : [...current, categoryId],
+    );
+  }
 
-  const hd226Options = useMemo(
-    () =>
-      hd226Devices.map((device) => ({
-        value: device.pairingId ?? '',
-        label: `${device.deviceName || device.serialNumber || 'Device'} — ${device.serialNumber || '—'}`,
-      })),
-    [hd226Devices],
-  );
-
-  const previewSlots = useMemo(() => parseDeploymentPreviewSlots(preview), [preview]);
-
-  function buildScreenCategoriesPayload() {
-    if (!showScreenCategoryPicker) return undefined;
-    return DEFAULT_DEPLOYMENT_SCREENS.map((screen) => ({
-      screenKey: screen.screenKey,
-      categoryId: screenCategories[screen.screenKey]!,
+  function updateXcScreen(screenKey: string, patch: Partial<ScreenRoute>) {
+    setXcScreens((current) => ({
+      ...current,
+      [screenKey]: {
+        ...(current[screenKey] ?? { categoryId: '' }),
+        ...patch,
+      },
     }));
+  }
+
+  function updateHdRow(id: string, patch: Partial<HdPlayerRow>) {
+    setHdRows((rows) => rows.map((row) => (row.id === id ? { ...row, ...patch } : row)));
+  }
+
+  function addHdRow() {
+    if (hdRows.length >= HD226_MAX_PLAYERS) {
+      showToast({
+        title: `Maximum ${HD226_MAX_PLAYERS} HD226 players per deployment`,
+        variant: 'error',
+      });
+      return;
+    }
+    setHdRows((rows) => [...rows, createHdRow()]);
+  }
+
+  function removeHdRow(id: string) {
+    setHdRows((rows) => (rows.length <= 1 ? rows : rows.filter((row) => row.id !== id)));
+  }
+
+  function routeValid(categoryId: string, playlistKey?: string): boolean {
+    if (!categoryId || !paletteIds.includes(categoryId)) return false;
+    const category = findCategoryById(contentCategories, categoryId);
+    if (category && categoryRequiresProgramPicker(category.scope)) {
+      return Boolean(playlistKey);
+    }
+    return true;
+  }
+
+  function step1Valid(): boolean {
+    if (!deploymentType) return false;
+    if (isDefault) {
+      if (paletteIds.length === 0) return false;
+      if (needsField && !fieldCategory) return false;
+      if (needsVariant && !exerciseVariant) return false;
+      return true;
+    }
+    if (isTouchscreen) {
+      // Fixed categories — Field/Variant required so BY_FIELD playlists resolve.
+      if (needsField && !fieldCategory) return false;
+      if (needsVariant && !exerciseVariant) return false;
+      return true;
+    }
+    return true;
+  }
+
+  function step2Valid(): boolean {
+    if (!isDefault) {
+      return Boolean(xcPairingId);
+    }
+
+    if (deviceKind === 'XC') {
+      if (!xcPairingId) return false;
+      return XC_SCREEN_KEYS.every((screenKey) => {
+        const route = xcScreens[screenKey];
+        return routeValid(route?.categoryId ?? '', route?.playlistKey);
+      });
+    }
+
+    if (deviceKind === 'HD') {
+      if (hdRows.length < 1) return false;
+      const pairingIds = hdRows.map((row) => row.pairingId);
+      if (pairingIds.some((id) => !id)) return false;
+      if (new Set(pairingIds).size !== pairingIds.length) return false;
+      return hdRows.every((row) => routeValid(row.categoryId, row.playlistKey));
+    }
+
+    return false;
+  }
+
+  function canGoNext(): boolean {
+    if (step === 1) return step1Valid();
+    if (step === 2) return step2Valid();
+    if (step === 3) return true;
+    return siteContactValid();
+  }
+
+  function siteContactValid(): boolean {
+    const email = ownerEmail.trim();
+    if (!ownerName.trim() || !email) return false;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
+  function buildSiteContact() {
+    return {
+      ownerName: ownerName.trim(),
+      ownerEmail: ownerEmail.trim(),
+      ...(siteAddress.trim() ? { siteAddress: siteAddress.trim() } : {}),
+      ...(ownerPhone.trim() ? { ownerPhone: ownerPhone.trim() } : {}),
+    };
   }
 
   function resetForm() {
     setStep(1);
-    setSelectedPairingId('');
-    setClusterMembers({ DEVICE_A: '', DEVICE_B: '', DEVICE_C: '' });
-    setScreenCategories({ SCREEN_1: '', SCREEN_2: '', SCREEN_3: '' });
-    setDeviceName('');
+    setPaletteIds([]);
+    setFieldCategory('');
+    setExerciseVariant('');
+    setRotationStartDate(new Date());
+    setDeviceKind('XC');
+    setXcPairingId('');
+    setXcDeviceName('');
+    setXcScreens({
+      SCREEN_1: { categoryId: '' },
+      SCREEN_2: { categoryId: '' },
+      SCREEN_3: { categoryId: '' },
+    });
+    setHdRows([createHdRow()]);
     setBrandingUiMode('none');
     setCompanyName('');
     setLogoFile(null);
     setLogoPreviewUrl(null);
-    setRotationStartDate(new Date());
+    setOwnerName('');
+    setOwnerEmail('');
+    setSiteAddress('');
+    setOwnerPhone('');
   }
 
   function toApiBrandingMode(mode: BrandingUiMode): BrandingMode {
@@ -257,22 +480,14 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
     return 'NONE';
   }
 
-  function screenCategoriesValid(): boolean {
-    if (!showScreenCategoryPicker) return true;
-    return DEFAULT_DEPLOYMENT_SCREENS.every((screen) =>
-      Boolean(screenCategories[screen.screenKey]),
-    );
-  }
-
   async function handleDeploy() {
-    if (!deploymentType || !fieldCategory || !exerciseVariant) {
-      showToast({ title: 'Select type, category, and variant first', variant: 'error' });
+    if (!step1Valid() || !step2Valid()) {
+      showToast({ title: 'Complete configuration and device steps first', variant: 'error' });
       return;
     }
-
-    if (!screenCategoriesValid()) {
+    if (!siteContactValid()) {
       showToast({
-        title: 'Select a content category for each screen',
+        title: 'Owner name and a valid email are required',
         variant: 'error',
       });
       return;
@@ -280,7 +495,7 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
 
     const dateStr = rotationStartDate ? format(rotationStartDate, 'yyyy-MM-dd') : undefined;
     const brandingMode = toApiBrandingMode(brandingUiMode);
-    const screenCategoryPayload = buildScreenCategoriesPayload();
+    const siteContact = buildSiteContact();
 
     setIsSubmitting(true);
     try {
@@ -302,36 +517,28 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
         brandingId = branding.id;
       }
 
-      if (isCluster) {
-        const members = hd226Slots.map((slot) => ({
-          memberKey: slot.memberKey,
-          pairingId: clusterMembers[slot.memberKey]!,
-          deviceName:
-            hd226Devices.find((d) => d.pairingId === clusterMembers[slot.memberKey])?.deviceName ??
-            slot.label,
-        }));
-
-        const missing = members.filter((m) => !m.pairingId);
-        const unique = new Set(members.map((m) => m.pairingId));
-        if (missing.length > 0 || unique.size !== 3) {
-          showToast({
-            title: 'HD226 requires 3 unique claimed players (A/B/C)',
-            variant: 'error',
-          });
-          setIsSubmitting(false);
-          return;
-        }
+      if (isDefault && deviceKind === 'HD') {
+        const screens = buildDeploymentScreens(hdRows.length);
+        const members = hdRows.map((row, index) => {
+          const device = hdDevices.find((entry) => entry.pairingId === row.pairingId);
+          return {
+            memberKey: screens[index]!.memberKey,
+            pairingId: row.pairingId,
+            deviceName: device?.deviceName ?? screens[index]!.label,
+          };
+        });
 
         const payload: RegisterClusterPayload = {
           hardwareProfile: 'HD226',
           members,
           deploymentType,
-          fieldCategory,
-          exerciseVariant,
+          ...(fieldCategory ? { fieldCategory } : {}),
+          ...(exerciseVariant ? { exerciseVariant } : {}),
           rotationStartDate: dateStr,
           brandingMode,
           brandingId,
           screenCategories: screenCategoryPayload,
+          siteContact,
         };
 
         const result = await registerDeployment(payload);
@@ -344,23 +551,27 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
         return;
       }
 
-      if (!selectedPairingId) {
+      if (!xcPairingId && !(isDefault && deviceKind === 'HD')) {
         showToast({ title: 'Select a claimed device', variant: 'error' });
         setIsSubmitting(false);
         return;
       }
 
       const payload: RegisterSinglePayload = {
-        pairingId: selectedPairingId,
+        pairingId: xcPairingId,
         deploymentType,
-        fieldCategory,
-        exerciseVariant,
+        ...(fieldCategory ? { fieldCategory } : {}),
+        ...(exerciseVariant ? { exerciseVariant } : {}),
         rotationStartDate: dateStr,
-        deviceName: deviceName.trim() || selectedDevice?.deviceName || undefined,
-        hardwareProfile: selectedDevice?.model,
+        deviceName: xcDeviceName.trim()
+          ? xcDeviceName.trim()
+          : (selectedClaimedDevice?.deviceName ?? undefined),
+        hardwareProfile:
+          selectedClaimedDevice?.model ?? (isDefault ? 'XC4055' : 'XT2145'),
         brandingMode,
         brandingId,
-        screenCategories: screenCategoryPayload,
+        screenCategories: isDefault ? screenCategoryPayload : undefined,
+        siteContact,
       };
 
       const result = await registerDeployment(payload);
@@ -383,21 +594,42 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
     }
   }
 
-  function canGoNext(): boolean {
-    if (step === 1) {
-      return (
-        Boolean(deploymentType && fieldCategory && exerciseVariant) &&
-        screenCategoriesValid()
-      );
-    }
-    if (step === 2) return true;
-    if (step === 3) {
-      if (isCluster) {
-        return hd226Slots.every((slot) => Boolean(clusterMembers[slot.memberKey]));
-      }
-      return Boolean(selectedPairingId);
-    }
-    return true;
+  function renderCategoryProgramPickers(args: {
+    categoryId: string;
+    playlistKey?: string;
+    onCategoryChange: (categoryId: string) => void;
+    onPlaylistChange: (playlistKey?: string) => void;
+  }) {
+    const category = findCategoryById(contentCategories, args.categoryId);
+    const showProgram =
+      category && categoryRequiresProgramPicker(category.scope);
+    const programOptions = playlistOptionsForCategory(category);
+
+    return (
+      <div className="space-y-2">
+        <Dropdown
+          options={[
+            { value: '', label: 'Select category…' },
+            ...paletteOptions,
+          ]}
+          value={args.categoryId}
+          onChange={(value) => args.onCategoryChange(value)}
+          fullWidth
+          disabled={contentCategoriesLoading || paletteOptions.length === 0}
+        />
+        {showProgram && (
+          <Dropdown
+            options={[
+              { value: '', label: 'Select program…' },
+              ...programOptions,
+            ]}
+            value={args.playlistKey ?? ''}
+            onChange={(value) => args.onPlaylistChange(value || undefined)}
+            fullWidth
+          />
+        )}
+      </div>
+    );
   }
 
   return (
@@ -406,12 +638,12 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
 
       {step === 1 && (
         <div className={cn(CARD_SURFACE_CLASS, 'space-y-4 p-4 sm:p-5')}>
-          <SectionLabel className="block">Deployment configuration</SectionLabel>
+          <SectionLabel className="block">Step 1 — Configuration</SectionLabel>
 
           <div>
             <p className="mb-1 text-xs font-medium text-content-muted">Deployment type</p>
             <Dropdown
-              options={types.map((t) => ({ value: t.value, label: t.label }))}
+              options={types.map((type) => ({ value: type.value, label: type.label }))}
               value={deploymentType}
               onChange={setDeploymentType}
               fullWidth
@@ -419,30 +651,89 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
             />
           </div>
 
-          <div>
-            <p className="mb-1 text-xs font-medium text-content-muted">Field category</p>
-            <Dropdown
-              options={categories.map((c) => ({ value: c.value, label: c.label }))}
-              value={fieldCategory}
-              onChange={(value) => {
-                setFieldCategory(value);
-                setExerciseVariant('');
-              }}
-              fullWidth
-              disabled={categoriesLoading}
-            />
-          </div>
+          {isDefault ? (
+            <>
+              <div className="space-y-2 rounded-lg border border-surface-border p-3">
+                <div>
+                  <p className="text-body-sm font-medium text-content-primary">
+                    Content categories for this deployment
+                  </p>
+                  <p className="text-caption text-content-secondary">
+                    Check the categories you want available. Field / Variant appear only when a
+                    selected category needs them (e.g. Phase 1).
+                  </p>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {palette.map((category) => {
+                    const checked = paletteIds.includes(category.id);
+                    return (
+                      <label
+                        key={category.id}
+                        className={cn(
+                          'flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-body-sm',
+                          checked
+                            ? 'border-brand-500/40 bg-brand-500/10 text-brand-700 dark:text-brand-300'
+                            : 'border-surface-border bg-surface-muted/20 text-content-secondary',
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 accent-brand-600"
+                          checked={checked}
+                          onChange={() => togglePalette(category.id)}
+                        />
+                        <span className="font-medium">{paletteLabel(category)}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {contentCategoriesLoading && (
+                  <p className="text-caption text-content-muted">Loading categories…</p>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="rounded-lg border border-surface-border bg-surface-muted/20 p-3 text-body-sm text-content-secondary">
+              Touchscreen deployments use the fixed system categories (Default, Start Here, Phase
+              1, Phase 2, Full Program). Choose Field and Variant below so Fitness/Golf playlists
+              resolve to the correct videos.
+            </div>
+          )}
 
-          <div>
-            <p className="mb-1 text-xs font-medium text-content-muted">Exercise variant</p>
-            <Dropdown
-              options={variants.map((v) => ({ value: v.value, label: v.label }))}
-              value={exerciseVariant}
-              onChange={setExerciseVariant}
-              fullWidth
-              disabled={variantsLoading || !fieldCategory}
-            />
-          </div>
+          {needsField && (
+            <div>
+              <p className="mb-1 text-xs font-medium text-content-muted">Field category</p>
+              <Dropdown
+                options={fieldOptions.map((option) => ({
+                  value: option.value,
+                  label: option.label,
+                }))}
+                value={fieldCategory}
+                onChange={(value) => {
+                  setFieldCategory(value);
+                  setExerciseVariant('');
+                }}
+                fullWidth
+                disabled={fieldLoading}
+              />
+            </div>
+          )}
+
+          {needsVariant && (
+            <div>
+              <p className="mb-1 text-xs font-medium text-content-muted">Exercise variant</p>
+              <Dropdown
+                options={variants.map((variant) => ({
+                  value: variant.value,
+                  label: variant.label,
+                }))}
+                value={exerciseVariant}
+                onChange={setExerciseVariant}
+                fullWidth
+                disabled={variantsLoading || !fieldCategory}
+              />
+            </div>
+          )}
 
           <div>
             <p className="mb-1 text-xs font-medium text-content-muted">Rotation start date</p>
@@ -453,53 +744,211 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
               </p>
             )}
           </div>
-
-          {showScreenCategoryPicker && (
-            <div className="space-y-3 rounded-lg border border-surface-border p-3">
-              <div>
-                <p className="text-body-sm font-medium text-content-primary">
-                  Screen content (per output)
-                </p>
-                <p className="text-caption text-content-secondary">
-                  Choose which category plays on each screen. Defaults follow field/variant;
-                  change freely. HD226 players A/B/C map to Screen 1/2/3.
-                </p>
-              </div>
-              {DEFAULT_DEPLOYMENT_SCREENS.map((screen) => (
-                <div key={screen.screenKey}>
-                  <p className="mb-1 text-xs font-medium text-content-muted">
-                    {screen.label}
-                    <span className="text-content-secondary"> · {screen.clusterLabel}</span>
-                  </p>
-                  <Dropdown
-                    options={[
-                      { value: '', label: 'Select category…' },
-                      ...contentCategoryOptions,
-                    ]}
-                    value={screenCategories[screen.screenKey] ?? ''}
-                    onChange={(value) =>
-                      setScreenCategories((current) => ({
-                        ...current,
-                        [screen.screenKey]: value,
-                      }))
-                    }
-                    fullWidth
-                    disabled={contentCategoriesLoading}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       )}
 
       {step === 2 && (
         <div className={cn(CARD_SURFACE_CLASS, 'space-y-4 p-4 sm:p-5')}>
-          <SectionLabel className="block">Content preview</SectionLabel>
+          <SectionLabel className="block">Step 2 — Device</SectionLabel>
           <p className="text-body-sm text-content-secondary">
-            {showScreenCategoryPicker
-              ? 'Preview uses the categories you selected for Screen 1 / 2 / 3 (resolved by field/variant playlists).'
-              : 'Touchscreen preview lists all parent content categories and their resolved playlists.'}
+            Assign claimed (not yet deployed) devices and map each output to a category from Step
+            1.
+          </p>
+
+          {isDefault ? (
+            <>
+              <div>
+                <p className="mb-1 text-xs font-medium text-content-muted">Device type</p>
+                <Dropdown
+                  options={[
+                    { value: 'XC', label: 'XC4055 (3 screens)' },
+                    { value: 'HD', label: 'HD226 (1 player per screen)' },
+                  ]}
+                  value={deviceKind}
+                  onChange={(value) => setDeviceKind(value as DeviceHardwareKind)}
+                  fullWidth
+                />
+              </div>
+
+              {deviceKind === 'XC' && (
+                <div className="space-y-3 rounded-lg border border-surface-border p-3">
+                  <div>
+                    <p className="mb-1 text-xs font-medium text-content-muted">XC4055 device</p>
+                    <Dropdown
+                      options={[
+                        { value: '', label: 'Select claimed XC device…' },
+                        ...xcDevices.map((device) => ({
+                          value: device.pairingId ?? '',
+                          label: deviceOptionLabel(device),
+                        })),
+                      ]}
+                      value={xcPairingId}
+                      onChange={(value) => {
+                        setXcPairingId(value);
+                        setXcDeviceName('');
+                      }}
+                      fullWidth
+                    />
+                    {xcDevices.length === 0 && (
+                      <p className="mt-1 text-caption text-status-warning">
+                        No claimed XC4055 devices available.
+                      </p>
+                    )}
+                  </div>
+
+                  {selectedXcDevice && (
+                    <Input
+                      label="Device name (optional)"
+                      placeholder={selectedXcDevice.deviceName ?? 'Gym Screen'}
+                      value={xcDeviceName}
+                      onChange={(event) => setXcDeviceName(event.target.value)}
+                    />
+                  )}
+
+                  {XC_SCREEN_KEYS.map((screenKey, index) => (
+                    <div key={screenKey} className="space-y-2 rounded-md border border-surface-border/70 p-2">
+                      <p className="text-xs font-medium text-content-muted">
+                        Screen {index + 1}
+                      </p>
+                      {renderCategoryProgramPickers({
+                        categoryId: xcScreens[screenKey]?.categoryId ?? '',
+                        playlistKey: xcScreens[screenKey]?.playlistKey,
+                        onCategoryChange: (categoryId) =>
+                          updateXcScreen(screenKey, {
+                            categoryId,
+                            playlistKey: undefined,
+                          }),
+                        onPlaylistChange: (playlistKey) =>
+                          updateXcScreen(screenKey, { playlistKey }),
+                      })}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {deviceKind === 'HD' && (
+                <div className="space-y-3">
+                  {hdRows.map((row, index) => {
+                    const usedPairingIds = new Set(
+                      hdRows
+                        .filter((entry) => entry.id !== row.id && entry.pairingId)
+                        .map((entry) => entry.pairingId),
+                    );
+                    const available = hdDevices.filter(
+                      (device) =>
+                        !usedPairingIds.has(device.pairingId ?? '') ||
+                        device.pairingId === row.pairingId,
+                    );
+                    const screen = buildDeploymentScreens(hdRows.length)[index];
+
+                    return (
+                      <div
+                        key={row.id}
+                        className="space-y-2 rounded-lg border border-surface-border p-3"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-body-sm font-medium text-content-primary">
+                            {screen?.label ?? `Player ${index + 1}`} ·{' '}
+                            {screen?.clusterLabel ?? `DEVICE_${String.fromCharCode(65 + index)}`}
+                          </p>
+                          {hdRows.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 px-2"
+                              onClick={() => removeHdRow(row.id)}
+                            >
+                              Remove
+                            </Button>
+                          )}
+                        </div>
+
+                        <div>
+                          <p className="mb-1 text-xs font-medium text-content-muted">
+                            HD226 device
+                          </p>
+                          <Dropdown
+                            options={[
+                              { value: '', label: 'Select claimed HD226…' },
+                              ...available.map((device) => ({
+                                value: device.pairingId ?? '',
+                                label: deviceOptionLabel(device),
+                              })),
+                            ]}
+                            value={row.pairingId}
+                            onChange={(value) => updateHdRow(row.id, { pairingId: value })}
+                            fullWidth
+                          />
+                        </div>
+
+                        <div>
+                          <p className="mb-1 text-xs font-medium text-content-muted">
+                            Player screen category
+                          </p>
+                          {renderCategoryProgramPickers({
+                            categoryId: row.categoryId,
+                            playlistKey: row.playlistKey,
+                            onCategoryChange: (categoryId) =>
+                              updateHdRow(row.id, {
+                                categoryId,
+                                playlistKey: undefined,
+                              }),
+                            onPlaylistChange: (playlistKey) =>
+                              updateHdRow(row.id, { playlistKey }),
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9 px-4"
+                    onClick={addHdRow}
+                    disabled={hdRows.length >= HD226_MAX_PLAYERS}
+                  >
+                    Add Device
+                  </Button>
+                  {hdDevices.length < hdRows.length && (
+                    <p className="text-caption text-status-warning">
+                      Need {hdRows.length} claimed HD226 devices. Currently: {hdDevices.length}.
+                    </p>
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="space-y-3 rounded-lg border border-surface-border p-3">
+              <p className="text-body-sm text-content-secondary">
+                Touchscreen deployments use a single claimed XT2145 device.
+              </p>
+              <Dropdown
+                options={[
+                  { value: '', label: 'Select claimed device…' },
+                  ...claimedDevices
+                    .filter((device) => (device.model ?? '').toUpperCase().includes('XT2145'))
+                    .map((device) => ({
+                      value: device.pairingId ?? '',
+                      label: deviceOptionLabel(device),
+                    })),
+                ]}
+                value={xcPairingId}
+                onChange={setXcPairingId}
+                fullWidth
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {step === 3 && (
+        <div className={cn(CARD_SURFACE_CLASS, 'space-y-4 p-4 sm:p-5')}>
+          <SectionLabel className="block">Step 3 — Preview</SectionLabel>
+          <p className="text-body-sm text-content-secondary">
+            Videos and rotation for the categories assigned to your selected device screens.
           </p>
           {previewLoading && (
             <p className="text-body-sm text-content-muted">Loading preview…</p>
@@ -517,9 +966,7 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
                     {slot.label}
                   </p>
                   <div className="flex items-center gap-2">
-                    {slot.isRotating && (
-                      <Badge variant="brand">36-day rotation</Badge>
-                    )}
+                    {slot.isRotating && <Badge variant="brand">36-day rotation</Badge>}
                     <Badge variant="success">
                       {slot.items.length} video{slot.items.length === 1 ? '' : 's'}
                     </Badge>
@@ -576,81 +1023,9 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
         </div>
       )}
 
-      {step === 3 && (
-        <div className={cn(CARD_SURFACE_CLASS, 'space-y-4 p-4 sm:p-5')}>
-          <SectionLabel className="block">Claimed device</SectionLabel>
-          <p className="text-body-sm text-content-secondary">
-            Pick a device in <strong>ADMIN_CLAIMED</strong> state. HD226 deployments need three
-            claimed players.
-          </p>
-
-          <div>
-            <p className="mb-1 text-xs font-medium text-content-muted">Primary claimed device</p>
-            <Dropdown
-              options={[{ value: '', label: 'Select device…' }, ...deviceOptions]}
-              value={selectedPairingId}
-              onChange={(value) => {
-                setSelectedPairingId(value);
-                setDeviceName('');
-              }}
-              fullWidth
-            />
-          </div>
-
-          {selectedDevice && !isCluster && (
-            <Input
-              label="Device name (optional override)"
-              placeholder={selectedDevice.deviceName ?? 'Gym Screen 1'}
-              value={deviceName}
-              onChange={(event) => setDeviceName(event.target.value)}
-            />
-          )}
-
-          {selectedDevice && (
-            <p className="text-caption text-content-secondary">
-              Model: {selectedDevice.model}
-              {selectedDevice.serialNumber ? ` · ${selectedDevice.serialNumber}` : ''}
-              {isCluster ? ' · HD226 cluster mode' : ''}
-            </p>
-          )}
-
-          {isCluster && (
-            <div className="space-y-3 rounded-lg border border-surface-border p-3">
-              <p className="text-body-sm font-medium text-content-primary">
-                HD226 cluster slots (content follows Screen 1/2/3 categories from step 1)
-              </p>
-              {hd226Slots.map((slot) => (
-                <div key={slot.memberKey}>
-                  <p className="mb-1 text-xs font-medium text-content-muted">{slot.label}</p>
-                  <Dropdown
-                    options={[{ value: '', label: 'Select HD226 player…' }, ...hd226Options]}
-                    value={clusterMembers[slot.memberKey] ?? ''}
-                    onChange={(value) =>
-                      setClusterMembers((current) => ({ ...current, [slot.memberKey]: value }))
-                    }
-                    fullWidth
-                  />
-                </div>
-              ))}
-              {hd226Devices.length < 3 && (
-                <p className="text-caption text-status-warning">
-                  Need at least 3 claimed HD226 devices. Currently: {hd226Devices.length}.
-                </p>
-              )}
-            </div>
-          )}
-
-          {claimedDevices.length === 0 && (
-            <p className="text-body-sm text-content-muted">
-              No claimed devices. Claim a pairing code from the Devices page first.
-            </p>
-          )}
-        </div>
-      )}
-
       {step === 4 && (
         <div className={cn(CARD_SURFACE_CLASS, 'space-y-4 p-4 sm:p-5')}>
-          <SectionLabel className="block">Branding & deploy</SectionLabel>
+          <SectionLabel className="block">Step 4 — Finalize deployment</SectionLabel>
 
           <div>
             <p className="mb-1 text-xs font-medium text-content-muted">Branding mode</p>
@@ -665,9 +1040,6 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
           {brandingUiMode === 'platform' && platformBranding && (
             <p className="text-body-sm text-content-secondary">
               Using platform default: {platformBranding.brandName}
-              {platformBranding.logoUrl
-                ? ` (${resolveStorageUrl(platformBranding.logoUrl)})`
-                : ''}
             </p>
           )}
 
@@ -690,34 +1062,122 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
             </>
           )}
 
-          <div className="rounded-lg border border-surface-border bg-surface-muted/20 p-3 text-body-sm text-content-secondary">
+          <div className="space-y-3 border-t border-surface-border pt-4">
+            <p className="text-xs font-medium text-content-muted">
+              Site owner (offline alerts)
+            </p>
+            <p className="text-body-sm text-content-secondary">
+              Stored on the device record — not a login. Used when the screen goes
+              offline during its content prefetch window.
+            </p>
+            <Input
+              label="Owner name"
+              placeholder="Alex Morgan"
+              value={ownerName}
+              onChange={(event) => setOwnerName(event.target.value)}
+              required
+            />
+            <Input
+              label="Owner email"
+              type="email"
+              placeholder="alex@acmegym.com"
+              value={ownerEmail}
+              onChange={(event) => setOwnerEmail(event.target.value)}
+              required
+            />
+            <Input
+              label="Site address"
+              placeholder="12 High St, Austin TX"
+              value={siteAddress}
+              onChange={(event) => setSiteAddress(event.target.value)}
+            />
+            <Input
+              label="Phone (optional)"
+              placeholder="+1 555 0100"
+              value={ownerPhone}
+              onChange={(event) => setOwnerPhone(event.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2 rounded-lg border border-surface-border bg-surface-muted/20 p-3 text-body-sm text-content-secondary">
             <p>
               <span className="font-medium text-content-primary">Type:</span> {deploymentType}
             </p>
             <p>
-              <span className="font-medium text-content-primary">Category:</span> {fieldCategory} /{' '}
-              {exerciseVariant}
+              <span className="font-medium text-content-primary">Categories:</span>{' '}
+              {isDefault
+                ? selectedPaletteCategories
+                    .map((category) => paletteLabel(category))
+                    .join(', ') || '—'
+                : 'Fixed touchscreen categories'}
             </p>
+            {((isDefault || isTouchscreen) && (needsField || needsVariant)) && (
+              <p>
+                <span className="font-medium text-content-primary">Field / Variant:</span>{' '}
+                {fieldCategory || '—'} / {exerciseVariant || '—'}
+              </p>
+            )}
             <p>
               <span className="font-medium text-content-primary">Start:</span>{' '}
               {rotationStartDate ? format(rotationStartDate, 'yyyy-MM-dd') : '—'}
             </p>
             <p>
-              <span className="font-medium text-content-primary">Device:</span>{' '}
-              {isCluster
-                ? 'HD226 cluster (3 players)'
-                : selectedDevice?.deviceName || selectedDevice?.serialNumber || '—'}
+              <span className="font-medium text-content-primary">Hardware:</span>{' '}
+              {isDefault
+                ? deviceKind === 'HD'
+                  ? `HD226 · ${hdRows.length} player${hdRows.length === 1 ? '' : 's'}`
+                  : 'XC4055 · 3 screens'
+                : 'XT2145'}
             </p>
-            {showScreenCategoryPicker && (
+
+            {isDefault && deviceKind === 'XC' && (
               <div className="mt-2 space-y-1 border-t border-surface-border pt-2">
-                {DEFAULT_DEPLOYMENT_SCREENS.map((screen) => {
-                  const category = contentCategories.find(
-                    (c) => c.id === screenCategories[screen.screenKey],
-                  );
+                <p>
+                  <span className="font-medium text-content-primary">Device:</span>{' '}
+                  {selectedXcDevice?.deviceName || selectedXcDevice?.serialNumber || '—'}
+                </p>
+                {XC_SCREEN_KEYS.map((screenKey, index) => {
+                  const route = xcScreens[screenKey];
+                  const category = findCategoryById(contentCategories, route?.categoryId ?? '');
+                  const program =
+                    route?.playlistKey && category
+                      ? category.playlists.find(
+                          (playlist) => playlist.playlistKey === route.playlistKey,
+                        )?.name
+                      : null;
                   return (
-                    <p key={screen.screenKey}>
-                      <span className="font-medium text-content-primary">{screen.label}:</span>{' '}
-                      {category?.name ?? '—'}
+                    <p key={screenKey}>
+                      <span className="font-medium text-content-primary">
+                        Screen {index + 1}:
+                      </span>{' '}
+                      {category ? paletteLabel(category) : '—'}
+                      {program ? ` · ${program}` : ''}
+                    </p>
+                  );
+                })}
+              </div>
+            )}
+
+            {isDefault && deviceKind === 'HD' && (
+              <div className="mt-2 space-y-1 border-t border-surface-border pt-2">
+                {hdRows.map((row, index) => {
+                  const device = hdDevices.find((entry) => entry.pairingId === row.pairingId);
+                  const category = findCategoryById(contentCategories, row.categoryId);
+                  const program =
+                    row.playlistKey && category
+                      ? category.playlists.find(
+                          (playlist) => playlist.playlistKey === row.playlistKey,
+                        )?.name
+                      : null;
+                  const screen = buildDeploymentScreens(hdRows.length)[index];
+                  return (
+                    <p key={row.id}>
+                      <span className="font-medium text-content-primary">
+                        {screen?.label ?? `Player ${index + 1}`}:
+                      </span>{' '}
+                      {device?.deviceName || device?.serialNumber || '—'} ·{' '}
+                      {category ? paletteLabel(category) : '—'}
+                      {program ? ` · ${program}` : ''}
                     </p>
                   );
                 })}
@@ -764,5 +1224,4 @@ export function NewDeploymentForm({ onSuccess }: NewDeploymentFormProps) {
   );
 }
 
-/** Re-export for callers that still expect an inventory item helper. */
 export type { DeviceInventoryItem };

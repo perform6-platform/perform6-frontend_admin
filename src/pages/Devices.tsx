@@ -17,6 +17,7 @@ import { statusOptions, type Device } from '../constants/devices';
 import { useToast } from '../context/ToastContext';
 import { useClaimPairing, useDevices } from '../hooks/useDevices';
 import { mapInventoryItem } from '../lib/deviceMapper';
+import { formatDeviceContentAxes } from '../lib/deploymentDisplay';
 import { cn } from '../lib/cn';
 import { getApiErrorMessage } from '../services/axios';
 import type { ClaimPairingPayload, DeviceInventoryState } from '../types/devices';
@@ -143,15 +144,15 @@ export default function Devices() {
     },
     {
       key: 'fieldCategory',
-      header: 'Field',
+      header: 'Field / Content',
       hideOnMobile: true,
-      render: (row) => row.fieldCategory?.trim() || '—',
+      render: (row) => formatDeviceContentAxes(row).fieldLabel,
     },
     {
       key: 'exerciseVariant',
-      header: 'Variant',
+      header: 'Variant / Program',
       hideOnMobile: true,
-      render: (row) => row.exerciseVariant?.trim() || '—',
+      render: (row) => formatDeviceContentAxes(row).variantLabel,
     },
     {
       key: 'deploymentName',

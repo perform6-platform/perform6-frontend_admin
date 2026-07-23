@@ -133,7 +133,7 @@ export interface CategoryGroup {
   label: string;
   isSystem?: boolean;
   parentCategoryId?: string;
-  scope?: 'GLOBAL' | 'BY_FIELD' | 'BY_FIELD_AND_VARIANT';
+  scope?: 'GLOBAL' | 'BY_FIELD' | 'BY_FIELD_AND_VARIANT' | 'BY_NAMED_PLAYLIST';
   children: CategoryGroupChild[];
 }
 

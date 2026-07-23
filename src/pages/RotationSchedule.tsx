@@ -99,11 +99,14 @@ export default function RotationSchedule() {
   const scheduleQuery = useMemo(() => {
     if (!isValid(rotationStartDate)) return null;
 
+    const deviceId = selectedInventoryItem?.deviceId ?? undefined;
+
     return {
       rotationStartDate: format(rotationStartDate, 'yyyy-MM-dd'),
       days: ROTATION_DAYS,
+      ...(deviceId ? { deviceId } : {}),
     };
-  }, [rotationStartDate]);
+  }, [rotationStartDate, selectedInventoryItem?.deviceId]);
 
   const {
     data: scheduleTable,

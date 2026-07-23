@@ -1,10 +1,10 @@
 import { cn } from '../../lib/cn';
 
 const DEFAULT_STEPS = [
-  { id: 1, label: 'Configure' },
-  { id: 2, label: 'Preview' },
-  { id: 3, label: 'Device' },
-  { id: 4, label: 'Deploy' },
+  { id: 1, label: 'Configuration' },
+  { id: 2, label: 'Device' },
+  { id: 3, label: 'Preview' },
+  { id: 4, label: 'Finalize' },
 ];
 
 export interface DeploymentStepperProps {

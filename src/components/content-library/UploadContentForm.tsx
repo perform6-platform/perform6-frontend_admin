@@ -12,6 +12,8 @@ const defaultThumbnail = defaultContentThumbnail;
 const acceptedVideoTypes = 'video/mp4,video/webm,video/quicktime,.mp4,.mov,.webm';
 const acceptedThumbnailTypes = 'image/png,image/jpeg,image/jpg,image/webp,.png,.jpg,.jpeg,.webp';
 const MAX_THUMBNAIL_BYTES = 5 * 1024 * 1024;
+/** Must match backend MEDIA_UPLOAD_MAX_BYTES (1.5 GB). */
+const MAX_VIDEO_BYTES = Math.floor(1.5 * 1024 * 1024 * 1024);
 
 export interface UploadContentPayload {
   title: string;
@@ -132,6 +134,7 @@ export function UploadContentForm({
   const [thumbnail, setThumbnail] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [thumbnailError, setThumbnailError] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const categoryInfo = getUploadCategoryInfo(categoryId, 1);
@@ -143,6 +146,7 @@ export function UploadContentForm({
     setThumbnail(null);
     setThumbnailPreview(null);
     setThumbnailError(null);
+    setFileError(null);
     setIsSubmitting(false);
     onReadyChange?.(false);
     onSubmittingChange?.(false);
@@ -158,6 +162,16 @@ export function UploadContentForm({
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const selected = event.target.files?.[0] ?? null;
+    setFileError(null);
+
+    if (selected && selected.size > MAX_VIDEO_BYTES) {
+      setFile(null);
+      onReadyChange?.(false);
+      setFileError('Video must be 1.5 GB or smaller');
+      event.target.value = '';
+      return;
+    }
+
     setFile(selected);
     onReadyChange?.(Boolean(selected));
     if (selected && !title.trim()) {
@@ -273,8 +287,11 @@ export function UploadContentForm({
           <span className="text-body-sm font-medium text-content-primary">
             {file ? file.name : 'Choose a video file'}
           </span>
-          <span className="text-caption text-content-muted">MP4, MOV, or WebM</span>
+          <span className="text-caption text-content-muted">MP4, MOV, or WebM · max 1.5 GB</span>
         </label>
+        {fileError && (
+          <p className="mt-1.5 text-caption text-red-600 dark:text-red-400">{fileError}</p>
+        )}
       </div>
 
       <div>

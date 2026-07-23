@@ -2,6 +2,26 @@ export type SyncFleetStatus = 'IDLE' | 'DOWNLOADING' | 'SYNCING' | 'FAILED' | 'C
 
 export type RequiredMediaStatus = 'CACHED' | 'DOWNLOADING' | 'FAILED' | 'MISSING';
 
+export interface PrefetchStatus {
+  mode: string;
+  inPrefetchLeadWindow: boolean;
+  currentWeek: {
+    weekIndex: number | null;
+    startDate: string | null;
+    expected: number;
+    cached: number;
+    complete: boolean;
+  };
+  nextWeek: {
+    startDate: string | null;
+    expected: number;
+    cached: number;
+    complete: boolean;
+    downloading: boolean;
+  };
+  previousWeekHeld: boolean;
+}
+
 export interface SyncFleetDeviceRow {
   deviceId: string;
   serialNumber: string | null;
@@ -17,9 +37,16 @@ export interface SyncFleetDeviceRow {
   rotationDay: number | null;
   cacheWindow: {
     days: number;
+    weekDays?: number;
+    prefetchLeadDays?: number;
     rotationDayFrom: number | null;
     rotationDayTo: number | null;
+    mode?: string;
+    inPrefetchLeadWindow?: boolean;
+    currentWeekStart?: string | null;
+    nextWeekStart?: string | null;
   };
+  prefetchStatus?: PrefetchStatus | null;
   expectedCount: number;
   cachedCount: number;
   progressPercent: number;
@@ -48,6 +75,7 @@ export interface RequiredMediaRow {
   mediaVersionId: string;
   title: string | null;
   rotationDay: number | null;
+  weekRole?: string | null;
   fileSize: string | null;
   downloadStatus: RequiredMediaStatus;
   bytesDownloaded: string | null;

@@ -56,6 +56,7 @@ export function mapInventoryItem(item: DeviceInventoryItem): Device {
     deploymentType: item.deploymentType ?? null,
     fieldCategory: item.fieldCategory ?? null,
     exerciseVariant: item.exerciseVariant ?? null,
+    screens: item.screens ?? [],
     activationStatus: item.activationStatus ?? null,
     pairingStatus: item.pairingStatus ?? null,
     inventoryState: item.state,

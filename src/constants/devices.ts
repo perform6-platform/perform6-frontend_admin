@@ -32,6 +32,8 @@ export interface Device {
     screenKey: string;
     categoryId: string | null;
     categoryName: string | null;
+    categorySlug?: string | null;
+    playlistKey?: string | null;
     title: string | null;
     thumbnail: string | null;
   }>;

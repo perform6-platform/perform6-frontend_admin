@@ -41,10 +41,27 @@ function deploymentLabel(device: SyncFleetDeviceRow): string {
 }
 
 function windowLabel(device: SyncFleetDeviceRow): string {
-  const from = device.cacheWindow?.rotationDayFrom;
-  const to = device.cacheWindow?.rotationDayTo;
+  const cw = device.cacheWindow;
+  if (cw?.inPrefetchLeadWindow && cw.nextWeekStart) {
+    return `Prefetch → ${cw.nextWeekStart}`;
+  }
+  if (cw?.currentWeekStart) {
+    return `Week of ${cw.currentWeekStart}`;
+  }
+  const from = cw?.rotationDayFrom;
+  const to = cw?.rotationDayTo;
   if (from == null || to == null) return '—';
   return `Day ${from}–${to}`;
+}
+
+function prefetchLabel(device: SyncFleetDeviceRow): string {
+  const ps = device.prefetchStatus;
+  if (!ps) return '—';
+  if (ps.nextWeek.downloading) {
+    return `Next week ${ps.nextWeek.cached}/${ps.nextWeek.expected}`;
+  }
+  if (ps.currentWeek.complete) return 'Current week ready';
+  return `Current ${ps.currentWeek.cached}/${ps.currentWeek.expected}`;
 }
 
 function statusBadgeVariant(status: SyncFleetStatus): 'success' | 'danger' | 'warning' | 'neutral' | 'brand' {
@@ -104,6 +121,11 @@ function DeviceDetailPanel({ deviceId }: { deviceId: string }) {
       render: (row) => row.title ?? row.mediaVersionId?.slice(0, 8) ?? '—',
     },
     {
+      key: 'weekRole',
+      header: 'Week',
+      render: (row) => row.weekRole ?? 'current',
+    },
+    {
       key: 'rotationDay',
       header: 'Rotation Day',
       render: (row) => (row.rotationDay != null ? `Day ${row.rotationDay}` : '—'),
@@ -140,7 +162,7 @@ function DeviceDetailPanel({ deviceId }: { deviceId: string }) {
         <Badge variant={statusBadgeVariant(device.status)}>{device.status ?? 'IDLE'}</Badge>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <div className="rounded-lg bg-surface-muted p-3">
           <p className="text-caption text-content-secondary">Progress</p>
           <p className="text-lg font-semibold">
@@ -158,10 +180,20 @@ function DeviceDetailPanel({ deviceId }: { deviceId: string }) {
           <p className="text-lg font-semibold">{windowLabel(device)}</p>
         </div>
         <div className="rounded-lg bg-surface-muted p-3">
+          <p className="text-caption text-content-secondary">Prefetch</p>
+          <p className="text-lg font-semibold">{prefetchLabel(device)}</p>
+        </div>
+        <div className="rounded-lg bg-surface-muted p-3">
           <p className="text-caption text-content-secondary">Last sync</p>
           <p className="text-lg font-semibold">{formatLastSync(device.lastSyncAt)}</p>
         </div>
       </div>
+
+      {device.prefetchStatus?.previousWeekHeld && (
+        <p className="text-body-sm text-content-secondary">
+          Previous week is held on device until the next week finishes downloading.
+        </p>
+      )}
 
       {device.activeDownload?.mediaVersionId && (
         <div className="rounded-lg border border-brand-200 bg-brand-50 p-3 text-sm dark:border-brand-600/30 dark:bg-brand-600/10">
@@ -178,7 +210,9 @@ function DeviceDetailPanel({ deviceId }: { deviceId: string }) {
       )}
 
       <div>
-        <h3 className="mb-2 text-sm font-semibold text-content-primary">Required media (7-day window)</h3>
+        <h3 className="mb-2 text-sm font-semibold text-content-primary">
+          Required media (weekly + prefetch)
+        </h3>
         <Table
           columns={mediaColumns}
           data={requiredMedia}
@@ -190,6 +224,10 @@ function DeviceDetailPanel({ deviceId }: { deviceId: string }) {
       {failedDownloads.length > 0 && (
         <div>
           <h3 className="mb-2 text-sm font-semibold text-content-primary">Recent failures</h3>
+          <p className="mb-2 text-caption text-content-secondary">
+            Run <span className="font-medium">Sync Now</span> on the device to retry. Status
+            refreshes automatically while items are Missing or Failed.
+          </p>
           <ul className="space-y-2 text-sm text-content-secondary">
             {failedDownloads.slice(0, 5).map((item) => (
               <li
@@ -202,6 +240,13 @@ function DeviceDetailPanel({ deviceId }: { deviceId: string }) {
             ))}
           </ul>
         </div>
+      )}
+
+      {requiredMedia.some((row) => row.downloadStatus === 'FAILED' || row.downloadStatus === 'MISSING') && (
+        <p className="text-caption text-content-muted">
+          Missing/Failed rows clear after the device finishes download and reports success (auto-refresh
+          every few seconds).
+        </p>
       )}
     </div>
   );
@@ -251,6 +296,11 @@ export default function ContentSyncing() {
       render: (row) => (row.rotationDay != null ? `Day ${row.rotationDay}` : '—'),
     },
     { key: 'cacheWindow', header: 'Window', render: (row) => windowLabel(row) },
+    {
+      key: 'prefetch',
+      header: 'Prefetch',
+      render: (row) => prefetchLabel(row),
+    },
     {
       key: 'synced',
       header: 'Synced',

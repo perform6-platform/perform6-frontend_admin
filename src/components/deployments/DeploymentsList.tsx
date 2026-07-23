@@ -11,6 +11,11 @@ import {
   SectionLabel,
 } from '../ui';
 import { useDeploymentsList } from '../../hooks/useDeployments';
+import { useCategories } from '../../hooks/useCategories';
+import {
+  formatDeploymentAxes,
+  formatEnumLabel,
+} from '../../lib/deploymentDisplay';
 import type { DeploymentEntity } from '../../types/deployments';
 import { DeploymentDetailsModal } from './DeploymentDetailsModal';
 import { EditDeploymentModal } from './EditDeploymentModal';
@@ -22,14 +27,6 @@ function brandingLabel(config?: Record<string, unknown>): string {
   if (mode === 'CUSTOM') return 'Custom';
   if (mode === 'NONE') return 'None';
   return 'Platform default';
-}
-
-function formatLabel(value: string | undefined): string {
-  if (!value) return '—';
-  return value
-    .replace(/_/g, ' ')
-    .toLowerCase()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 export function DeploymentsList() {
@@ -49,6 +46,7 @@ export function DeploymentsList() {
   );
 
   const { data, isLoading, isError, refetch } = useDeploymentsList(query);
+  const { data: contentCategories = [] } = useCategories();
   const items = data?.items ?? [];
   const meta = data?.meta;
 
@@ -96,52 +94,57 @@ export function DeploymentsList() {
                 <tr>
                   <th className="px-3 py-2.5 font-medium">Name</th>
                   <th className="px-3 py-2.5 font-medium">Type</th>
-                  <th className="px-3 py-2.5 font-medium">Field</th>
-                  <th className="px-3 py-2.5 font-medium">Variant</th>
+                  <th className="px-3 py-2.5 font-medium">Field / Content</th>
+                  <th className="px-3 py-2.5 font-medium">Variant / Program</th>
                   <th className="px-3 py-2.5 font-medium">Devices</th>
                   <th className="px-3 py-2.5 font-medium">Branding</th>
                   <th className="px-3 py-2.5 font-medium text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {items.map((deployment) => (
-                  <tr key={deployment.id} className="border-t border-surface-border">
-                    <td className="px-3 py-3 font-medium text-content-primary">
-                      {deployment.name || deployment.id.slice(0, 8)}
-                    </td>
-                    <td className="px-3 py-3 text-content-secondary">
-                      {formatLabel(deployment.deploymentType)}
-                    </td>
-                    <td className="px-3 py-3">
-                      <Badge variant="brand">{formatLabel(deployment.fieldCategory)}</Badge>
-                    </td>
-                    <td className="px-3 py-3 text-content-secondary">
-                      {formatLabel(deployment.exerciseVariant)}
-                    </td>
-                    <td className="px-3 py-3 text-content-secondary">
-                      {deployment.devices?.length ?? 0}
-                    </td>
-                    <td className="px-3 py-3 text-content-secondary">
-                      {brandingLabel(deployment.config)}
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="flex justify-end gap-1">
-                        <IconButton
-                          label={`View ${deployment.name ?? 'deployment'}`}
-                          onClick={() => setViewingId(deployment.id)}
-                        >
-                          <Eye />
-                        </IconButton>
-                        <IconButton
-                          label={`Edit ${deployment.name ?? 'deployment'}`}
-                          onClick={() => setEditing(deployment)}
-                        >
-                          <Pencil />
-                        </IconButton>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {items.map((deployment) => {
+                  const axes = formatDeploymentAxes(deployment, {
+                    categories: contentCategories,
+                  });
+                  return (
+                    <tr key={deployment.id} className="border-t border-surface-border">
+                      <td className="px-3 py-3 font-medium text-content-primary">
+                        {deployment.name || deployment.id.slice(0, 8)}
+                      </td>
+                      <td className="px-3 py-3 text-content-secondary">
+                        {formatEnumLabel(deployment.deploymentType)}
+                      </td>
+                      <td className="px-3 py-3">
+                        <Badge variant="brand">{axes.fieldLabel}</Badge>
+                      </td>
+                      <td className="px-3 py-3 text-content-secondary">
+                        {axes.variantLabel}
+                      </td>
+                      <td className="px-3 py-3 text-content-secondary">
+                        {deployment.devices?.length ?? 0}
+                      </td>
+                      <td className="px-3 py-3 text-content-secondary">
+                        {brandingLabel(deployment.config)}
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex justify-end gap-1">
+                          <IconButton
+                            label={`View ${deployment.name ?? 'deployment'}`}
+                            onClick={() => setViewingId(deployment.id)}
+                          >
+                            <Eye />
+                          </IconButton>
+                          <IconButton
+                            label={`Edit ${deployment.name ?? 'deployment'}`}
+                            onClick={() => setEditing(deployment)}
+                          >
+                            <Pencil />
+                          </IconButton>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

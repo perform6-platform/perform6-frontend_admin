@@ -91,8 +91,14 @@ export default function ContentLibrary() {
 
   const processingQuery = useMediaAsset(processingAssetId, {
     refetchInterval: (query) => {
+      if (query.state.error) return false;
       const status = query.state.data?.status;
-      return status === 'PROCESSING' ? 2000 : false;
+      return status === 'PROCESSING' ? 3_000 : false;
+    },
+    retry: (failureCount, error) => {
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      if (status === 429) return false;
+      return failureCount < 2;
     },
   });
 
@@ -136,7 +142,7 @@ export default function ContentLibrary() {
     void poll();
     const timer = window.setInterval(() => {
       void poll();
-    }, 900);
+    }, 2_000);
 
     return () => {
       cancelled = true;

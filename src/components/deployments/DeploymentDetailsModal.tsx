@@ -1,8 +1,14 @@
 import { useMemo } from 'react';
 import { useDeployment } from '../../hooks/useDeployments';
 import { cn } from '../../lib/cn';
+import {
+  formatDeploymentAxes,
+  formatEnumLabel,
+  formatScreenContentLabel,
+  formatScreenRoleLabel,
+  resolveDeploymentScreens,
+} from '../../lib/deploymentDisplay';
 import { resolveStorageUrl } from '../../lib/libraryType';
-import type { DeploymentEntity, DeploymentScreenSummary } from '../../types/deployments';
 import { Badge, Button, CARD_SURFACE_CLASS, Modal, ModalBody, SectionLabel } from '../ui';
 
 export interface DeploymentDetailsModalProps {
@@ -11,36 +17,11 @@ export interface DeploymentDetailsModalProps {
   onClose: () => void;
 }
 
-function formatLabel(value: string | undefined | null): string {
-  if (!value) return '—';
-  return value
-    .replace(/_/g, ' ')
-    .toLowerCase()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
 function brandingLabel(config?: Record<string, unknown>): string {
   const mode = config?.brandingMode;
   if (mode === 'CUSTOM') return 'Custom';
   if (mode === 'NONE') return 'None';
   return 'Platform default';
-}
-
-function resolveScreens(deployment: DeploymentEntity | undefined): DeploymentScreenSummary[] {
-  if (!deployment) return [];
-  if (Array.isArray(deployment.screens) && deployment.screens.length > 0) {
-    return deployment.screens;
-  }
-  return (deployment.screenAssignments ?? []).map((assignment) => ({
-    id: assignment.id,
-    screenKey: assignment.screenKey,
-    contentSlot: assignment.contentSlot,
-    categoryId: assignment.categoryId ?? null,
-    categoryName:
-      assignment.categoryName ?? assignment.category?.name ?? null,
-    categorySlug: assignment.categorySlug ?? assignment.category?.slug ?? null,
-    sortOrder: assignment.sortOrder,
-  }));
 }
 
 export function DeploymentDetailsModal({
@@ -52,7 +33,14 @@ export function DeploymentDetailsModal({
     open ? deploymentId : null,
   );
 
-  const screens = useMemo(() => resolveScreens(deployment), [deployment]);
+  const screens = useMemo(
+    () => resolveDeploymentScreens(deployment),
+    [deployment],
+  );
+  const axes = useMemo(
+    () => formatDeploymentAxes(deployment),
+    [deployment],
+  );
   const branding = deployment?.branding?.[0];
   const logoUrl =
     branding && typeof branding.logoUrl === 'string'
@@ -84,9 +72,15 @@ export function DeploymentDetailsModal({
               <SectionLabel className="mb-3 block">Overview</SectionLabel>
               <dl className="divide-y divide-surface-border rounded-lg border border-surface-border">
                 <DetailRow label="Name" value={deployment.name || '—'} />
-                <DetailRow label="Type" value={formatLabel(deployment.deploymentType)} />
-                <DetailRow label="Field" value={formatLabel(deployment.fieldCategory)} />
-                <DetailRow label="Variant" value={formatLabel(deployment.exerciseVariant)} />
+                <DetailRow label="Type" value={formatEnumLabel(deployment.deploymentType)} />
+                <DetailRow
+                  label={axes.isAxisFree ? 'Content' : 'Field'}
+                  value={axes.fieldLabel}
+                />
+                <DetailRow
+                  label={axes.isAxisFree ? 'Program' : 'Variant'}
+                  value={axes.variantLabel}
+                />
                 <DetailRow label="Branding" value={brandingLabel(deployment.config)} />
                 <DetailRow
                   label="Devices"
@@ -111,26 +105,29 @@ export function DeploymentDetailsModal({
                 </p>
               ) : (
                 <ul className="divide-y divide-surface-border rounded-lg border border-surface-border">
-                  {screens.map((screen) => (
-                    <li
-                      key={screen.screenKey}
-                      className="flex items-center justify-between gap-3 px-4 py-3"
-                    >
-                      <div>
-                        <p className="text-body-sm font-medium text-content-primary">
-                          {formatLabel(screen.screenKey)}
-                        </p>
-                        <p className="text-caption text-content-muted">
-                          {screen.contentSlot
-                            ? formatLabel(screen.contentSlot)
-                            : 'Content slot'}
-                        </p>
-                      </div>
-                      <Badge variant="brand">
-                        {screen.categoryName || screen.categoryId || 'Unassigned'}
-                      </Badge>
-                    </li>
-                  ))}
+                  {screens.map((screen) => {
+                    const role = formatScreenRoleLabel(screen);
+                    return (
+                      <li
+                        key={screen.screenKey}
+                        className="flex items-center justify-between gap-3 px-4 py-3"
+                      >
+                        <div>
+                          <p className="text-body-sm font-medium text-content-primary">
+                            {formatEnumLabel(screen.screenKey)}
+                          </p>
+                          {role ? (
+                            <p className="text-caption text-content-muted">
+                              Role: {role}
+                            </p>
+                          ) : null}
+                        </div>
+                        <Badge variant="brand">
+                          {formatScreenContentLabel(screen)}
+                        </Badge>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </section>

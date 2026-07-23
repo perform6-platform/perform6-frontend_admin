@@ -7,13 +7,25 @@ import {
 } from '../../hooks/useDeployments';
 import { useCategories } from '../../hooks/useCategories';
 import { useToast } from '../../context/ToastContext';
+import {
+  formatEnumLabel,
+  resolveDeploymentScreens,
+} from '../../lib/deploymentDisplay';
 import { DEFAULT_DEPLOYMENT_SCREENS } from '../../lib/screenCategoryDefaults';
+import {
+  categoryRequiresProgramPicker,
+  deploymentRequiresField,
+  deploymentRequiresVariant,
+  findCategoryById,
+  playlistOptionsForCategory,
+} from '../../lib/deploymentWizard';
 import { getApiErrorMessage } from '../../services/axios';
 import type {
   BrandingMode,
   DeploymentEntity,
   UpdateDeploymentPayload,
 } from '../../types/deployments';
+import type { ContentCategory } from '../../types/categories';
 
 export interface EditDeploymentModalProps {
   open: boolean;
@@ -21,6 +33,8 @@ export interface EditDeploymentModalProps {
   onClose: () => void;
   onSaved?: () => void;
 }
+
+type ScreenRoute = { categoryId: string; playlistKey?: string };
 
 const brandingOptions = [
   { value: 'PLATFORM_DEFAULT', label: 'Platform default' },
@@ -30,6 +44,20 @@ const brandingOptions = [
 
 function isDefaultDeployment(type: string | undefined): boolean {
   return (type ?? '').toUpperCase().includes('DEFAULT');
+}
+
+function routeValid(
+  categories: ContentCategory[],
+  categoryId: string,
+  playlistKey?: string,
+): boolean {
+  if (!categoryId) return false;
+  const category = findCategoryById(categories, categoryId);
+  if (!category) return false;
+  if (categoryRequiresProgramPicker(category.scope)) {
+    return Boolean(playlistKey);
+  }
+  return true;
 }
 
 export function EditDeploymentModal({
@@ -49,12 +77,49 @@ export function EditDeploymentModal({
   const [exerciseVariant, setExerciseVariant] = useState('');
   const [brandingMode, setBrandingMode] = useState<BrandingMode>('PLATFORM_DEFAULT');
   const [brandingId, setBrandingId] = useState('');
-  const [screenCategories, setScreenCategories] = useState<Record<string, string>>({});
+  const [screenRoutes, setScreenRoutes] = useState<Record<string, ScreenRoute>>({});
 
   const source = detail ?? deployment;
   const showScreenEditor = isDefaultDeployment(source?.deploymentType);
 
-  const { data: variants = [] } = useCategoryVariants(fieldCategory || null);
+  const editorScreens = useMemo(() => {
+    const fromSource = resolveDeploymentScreens(source).filter(
+      (screen): screen is typeof screen & { screenKey: string } =>
+        Boolean(screen.screenKey),
+    );
+    if (fromSource.length > 0) {
+      return fromSource.map((screen) => ({
+        screenKey: screen.screenKey,
+        label: formatEnumLabel(screen.screenKey),
+      }));
+    }
+    return DEFAULT_DEPLOYMENT_SCREENS.map((screen) => ({
+      screenKey: screen.screenKey,
+      label: screen.label,
+    }));
+  }, [source]);
+
+  const selectedCategoryIds = useMemo(
+    () =>
+      Object.values(screenRoutes)
+        .map((route) => route.categoryId)
+        .filter(Boolean),
+    [screenRoutes],
+  );
+
+  const needsField = useMemo(() => {
+    if (!showScreenEditor) return true;
+    return deploymentRequiresField(contentCategories, selectedCategoryIds);
+  }, [showScreenEditor, contentCategories, selectedCategoryIds]);
+
+  const needsVariant = useMemo(() => {
+    if (!showScreenEditor) return true;
+    return deploymentRequiresVariant(contentCategories, selectedCategoryIds);
+  }, [showScreenEditor, contentCategories, selectedCategoryIds]);
+
+  const { data: variants = [] } = useCategoryVariants(
+    needsField && fieldCategory ? fieldCategory : null,
+  );
 
   const categoryOptions = useMemo(
     () =>
@@ -82,35 +147,51 @@ export function EditDeploymentModal({
     const linkedBrandingId = source.branding?.[0]?.id;
     setBrandingId(typeof linkedBrandingId === 'string' ? linkedBrandingId : '');
 
-    const screens =
-      source.screens ??
-      source.screenAssignments?.map((assignment) => ({
-        screenKey: assignment.screenKey,
-        categoryId: assignment.categoryId ?? assignment.category?.id ?? null,
-      })) ??
-      [];
-
-    const nextScreens: Record<string, string> = {
-      SCREEN_1: '',
-      SCREEN_2: '',
-      SCREEN_3: '',
-    };
-    for (const screen of screens) {
-      if (screen.screenKey && screen.categoryId) {
-        nextScreens[screen.screenKey] = screen.categoryId;
-      }
+    const screens = resolveDeploymentScreens(source);
+    const nextRoutes: Record<string, ScreenRoute> = {};
+    for (const screen of editorScreens) {
+      nextRoutes[screen.screenKey] = { categoryId: '', playlistKey: undefined };
     }
-    setScreenCategories(nextScreens);
-  }, [source, open]);
+    for (const screen of screens) {
+      if (!screen.screenKey) continue;
+      nextRoutes[screen.screenKey] = {
+        categoryId: screen.categoryId ?? '',
+        playlistKey: screen.playlistKey ?? undefined,
+      };
+    }
+    setScreenRoutes(nextRoutes);
+  }, [source, open, editorScreens]);
+
+  const screensValid =
+    !showScreenEditor ||
+    editorScreens.every((screen) => {
+      const route = screenRoutes[screen.screenKey];
+      return routeValid(contentCategories, route?.categoryId ?? '', route?.playlistKey);
+    });
+
+  const axesValid =
+    (!needsField || Boolean(fieldCategory)) &&
+    (!needsVariant || Boolean(exerciseVariant));
+
+  const canSave = screensValid && axesValid;
+
+  function updateScreenRoute(screenKey: string, patch: Partial<ScreenRoute>) {
+    setScreenRoutes((current) => ({
+      ...current,
+      [screenKey]: {
+        categoryId: current[screenKey]?.categoryId ?? '',
+        playlistKey: current[screenKey]?.playlistKey,
+        ...patch,
+      },
+    }));
+  }
 
   async function handleSave() {
-    if (!deployment) return;
+    if (!deployment || !canSave) return;
 
     const payload: UpdateDeploymentPayload = {
       name: name.trim() || undefined,
       description: description.trim() || undefined,
-      fieldCategory: fieldCategory || undefined,
-      exerciseVariant: exerciseVariant || undefined,
       brandingMode,
       brandingId:
         brandingMode === 'CUSTOM' && brandingId.trim()
@@ -118,16 +199,27 @@ export function EditDeploymentModal({
           : undefined,
     };
 
+    if (needsField && fieldCategory) {
+      payload.fieldCategory = fieldCategory;
+    } else if (showScreenEditor) {
+      // Clear stale Fitness/Wall when screens no longer need an axis (e.g. 15 Minutes only).
+      payload.fieldCategory = null;
+    }
+    if (needsVariant && exerciseVariant) {
+      payload.exerciseVariant = exerciseVariant;
+    } else if (showScreenEditor) {
+      payload.exerciseVariant = null;
+    }
+
     if (showScreenEditor) {
-      const picks = DEFAULT_DEPLOYMENT_SCREENS.filter((screen) =>
-        Boolean(screenCategories[screen.screenKey]),
-      ).map((screen) => ({
-        screenKey: screen.screenKey,
-        categoryId: screenCategories[screen.screenKey]!,
-      }));
-      if (picks.length === DEFAULT_DEPLOYMENT_SCREENS.length) {
-        payload.screenCategories = picks;
-      }
+      payload.screenCategories = editorScreens.map((screen) => {
+        const route = screenRoutes[screen.screenKey]!;
+        return {
+          screenKey: screen.screenKey,
+          categoryId: route.categoryId,
+          ...(route.playlistKey ? { playlistKey: route.playlistKey } : {}),
+        };
+      });
     }
 
     try {
@@ -151,7 +243,7 @@ export function EditDeploymentModal({
       open={open}
       onClose={onClose}
       title="Edit deployment"
-      description="Update field, variant, branding, screens, or display name."
+      description="Update content, branding, screens, or display name."
       size="lg"
       footer={
         <>
@@ -170,7 +262,7 @@ export function EditDeploymentModal({
             size="sm"
             className="h-9 px-4"
             onClick={() => void handleSave()}
-            disabled={isPending || !fieldCategory || !exerciseVariant}
+            disabled={isPending || !canSave}
           >
             {isPending ? 'Saving…' : 'Save changes'}
           </Button>
@@ -192,40 +284,44 @@ export function EditDeploymentModal({
             placeholder="Optional notes"
           />
 
-          <div>
-            <label className="mb-1 block text-xs font-medium text-content-muted">
-              Field category
-            </label>
-            <Dropdown
-              fullWidth
-              value={fieldCategory}
-              onChange={(value) => {
-                setFieldCategory(value);
-                setExerciseVariant('');
-              }}
-              options={[
-                { value: 'FITNESS', label: 'Fitness' },
-                { value: 'GOLF', label: 'Golf' },
-              ]}
-            />
-          </div>
+          {needsField && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-content-muted">
+                Field category
+              </label>
+              <Dropdown
+                fullWidth
+                value={fieldCategory}
+                onChange={(value) => {
+                  setFieldCategory(value);
+                  setExerciseVariant('');
+                }}
+                options={[
+                  { value: 'FITNESS', label: 'Fitness' },
+                  { value: 'GOLF', label: 'Golf' },
+                ]}
+              />
+            </div>
+          )}
 
-          <div>
-            <label className="mb-1 block text-xs font-medium text-content-muted">
-              Exercise variant
-            </label>
-            <Dropdown
-              fullWidth
-              value={exerciseVariant}
-              onChange={setExerciseVariant}
-              options={variants.map((variant) => ({
-                value: String(variant.value ?? variant.id),
-                label: variant.label,
-              }))}
-              disabled={!fieldCategory}
-              placeholder={fieldCategory ? 'Select variant' : 'Select field first'}
-            />
-          </div>
+          {needsVariant && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-content-muted">
+                Exercise variant
+              </label>
+              <Dropdown
+                fullWidth
+                value={exerciseVariant}
+                onChange={setExerciseVariant}
+                options={variants.map((variant) => ({
+                  value: String(variant.value ?? variant.id),
+                  label: variant.label,
+                }))}
+                disabled={!fieldCategory}
+                placeholder={fieldCategory ? 'Select variant' : 'Select field first'}
+              />
+            </div>
+          )}
 
           <div>
             <label className="mb-1 block text-xs font-medium text-content-muted">
@@ -252,29 +348,55 @@ export function EditDeploymentModal({
             <div className="space-y-3 rounded-lg border border-surface-border p-3">
               <SectionLabel className="block">Screen content</SectionLabel>
               <p className="text-caption text-content-secondary">
-                Change which parent category plays on each screen.
+                Change which parent category (and program, when needed) plays on each screen.
               </p>
-              {DEFAULT_DEPLOYMENT_SCREENS.map((screen) => (
-                <div key={screen.screenKey}>
-                  <p className="mb-1 text-xs font-medium text-content-muted">
-                    {screen.label}
-                  </p>
-                  <Dropdown
-                    options={[
-                      { value: '', label: 'Select category…' },
-                      ...categoryOptions,
-                    ]}
-                    value={screenCategories[screen.screenKey] ?? ''}
-                    onChange={(value) =>
-                      setScreenCategories((current) => ({
-                        ...current,
-                        [screen.screenKey]: value,
-                      }))
-                    }
-                    fullWidth
-                  />
-                </div>
-              ))}
+              {editorScreens.map((screen) => {
+                const route = screenRoutes[screen.screenKey] ?? {
+                  categoryId: '',
+                  playlistKey: undefined,
+                };
+                const category = findCategoryById(contentCategories, route.categoryId);
+                const showProgram =
+                  category && categoryRequiresProgramPicker(category.scope);
+                const programOptions = playlistOptionsForCategory(category);
+
+                return (
+                  <div key={screen.screenKey} className="space-y-2">
+                    <p className="text-xs font-medium text-content-muted">
+                      {screen.label}
+                    </p>
+                    <Dropdown
+                      options={[
+                        { value: '', label: 'Select category…' },
+                        ...categoryOptions,
+                      ]}
+                      value={route.categoryId}
+                      onChange={(value) =>
+                        updateScreenRoute(screen.screenKey, {
+                          categoryId: value,
+                          playlistKey: undefined,
+                        })
+                      }
+                      fullWidth
+                    />
+                    {showProgram && (
+                      <Dropdown
+                        options={[
+                          { value: '', label: 'Select program…' },
+                          ...programOptions,
+                        ]}
+                        value={route.playlistKey ?? ''}
+                        onChange={(value) =>
+                          updateScreenRoute(screen.screenKey, {
+                            playlistKey: value || undefined,
+                          })
+                        }
+                        fullWidth
+                      />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

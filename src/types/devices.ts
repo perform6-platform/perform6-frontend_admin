@@ -83,6 +83,14 @@ export interface DeviceInventoryItem {
   deploymentType?: string | null;
   fieldCategory?: string | null;
   exerciseVariant?: string | null;
+  /** Screen → category snapshot for Field/Content display when axes are derived. */
+  screens?: Array<{
+    screenKey: string;
+    categoryId: string | null;
+    categoryName: string | null;
+    categorySlug?: string | null;
+    playlistKey?: string | null;
+  }>;
   activationStatus?: string | null;
   pairingStatus?: string | null;
   lastSeenAt: string | null;
@@ -93,6 +101,11 @@ export interface DeviceInventoryItem {
   hardwareProfile?: HardwareProfileCode | null;
   isOnline?: boolean;
   rotationStartDate?: string | null;
+  /** Site owner contact (offline prefetch emails). */
+  ownerName?: string | null;
+  ownerEmail?: string | null;
+  siteAddress?: string | null;
+  ownerPhone?: string | null;
 }
 
 export interface DeviceInventoryMeta {

@@ -9,6 +9,7 @@ import {
   useDisconnectDevice,
 } from '../../hooks/useDevices';
 import { cn } from '../../lib/cn';
+import { formatDeviceContentAxes } from '../../lib/deploymentDisplay';
 import {
   exportRotationScheduleCsv,
   getDeviceScheduleExportFilename,
@@ -63,6 +64,7 @@ export function DeviceDetailsPanel({ device, className }: DeviceDetailsPanelProp
   const canDisconnect = isRegistered && isAttached && !isDisabled;
   const canDisable = isRegistered && !isAttached && !isDisabled;
   const canAttach = isRegistered && !isAttached && !isDisabled;
+  const axes = formatDeviceContentAxes(device);
 
   function handleExportSchedule() {
     exportRotationScheduleCsv(getRowByDay, getDeviceScheduleExportFilename(device!.name));
@@ -132,12 +134,11 @@ export function DeviceDetailsPanel({ device, className }: DeviceDetailsPanelProp
         <div className="min-w-0">
           <h3 className="truncate text-lg font-bold text-content-primary">{device.name}</h3>
           <p className="mt-0.5 text-body-sm text-content-secondary">
-            {[device.fieldCategory, device.exerciseVariant].filter(Boolean).join(' · ') ||
-              device.location}
+            {axes.summary !== '—' ? axes.summary : device.location}
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
-          <Badge variant={device.status === 'online' ? 'success' : 'danger'}>
+          <Badge variant={device.status === 'online' ? 'success' : 'neutral'}>
             {device.status === 'online' ? 'Online' : 'Offline'}
           </Badge>
           {isDisabled && <Badge variant="warning">Disabled</Badge>}
@@ -146,6 +147,11 @@ export function DeviceDetailsPanel({ device, className }: DeviceDetailsPanelProp
           )}
         </div>
       </div>
+      {device.status === 'offline' && isRegistered ? (
+        <p className="mb-3 text-caption text-content-muted">
+          Offline means no heartbeat/sync in the last 5 minutes — fleet state can still be Registered.
+        </p>
+      ) : null}
 
       <div className="mb-2 rounded-lg bg-surface-muted/80 px-4 py-3 dark:bg-[var(--color-surface-muted)]">
         <BrightSignDeviceImage />
@@ -157,8 +163,14 @@ export function DeviceDetailsPanel({ device, className }: DeviceDetailsPanelProp
         <DetailRow label="Model" value={device.model} />
         <DetailRow label="Firmware" value={device.firmware} />
         <DetailRow label="Location" value={device.location} />
-        <DetailRow label="Field" value={device.fieldCategory?.trim() || '—'} />
-        <DetailRow label="Variant" value={device.exerciseVariant?.trim() || '—'} />
+        <DetailRow
+          label={axes.isAxisFree ? 'Content' : 'Field'}
+          value={axes.fieldLabel}
+        />
+        <DetailRow
+          label={axes.isAxisFree ? 'Program' : 'Variant'}
+          value={axes.variantLabel}
+        />
         <DetailRow
           label="Fleet State"
           value={

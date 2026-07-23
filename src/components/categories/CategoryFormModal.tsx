@@ -30,6 +30,12 @@ const SCOPE_OPTIONS: Array<{
     description: 'Fitness/Golf × Wall/No Wall (like Phase 1).',
     playlists: '4 playlists',
   },
+  {
+    value: 'BY_NAMED_PLAYLIST',
+    title: 'Named programs',
+    description: 'Fixed sub-programs chosen per screen at deployment (like 15 Minutes A–D).',
+    playlists: '4 programs',
+  },
 ];
 
 export interface CategoryFormModalProps {

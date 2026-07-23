@@ -6,7 +6,6 @@ import {
   Gauge,
   HardDriveDownload,
   LayoutDashboard,
-  MapPin,
   Monitor,
   RotateCw,
   Upload,
@@ -29,7 +28,6 @@ export const mainNavigation: NavItemConfig[] = [
   { label: 'Rotation', to: '/rotation', icon: RotateCw },
   { label: 'Schedule', to: '/rotation-schedule', icon: CalendarDays },
   { label: 'Deployments', to: '/deployments', icon: Upload },
-  { label: 'Locations', to: '/locations', icon: MapPin },
 ];
 
 export const quickActions = [

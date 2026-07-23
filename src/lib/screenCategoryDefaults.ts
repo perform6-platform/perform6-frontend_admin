@@ -1,10 +1,8 @@
 /** Maps DEFAULT_DEPLOYMENT screens → parent content_categories.slug (scope-aware resolve at runtime). */
 
-export const DEFAULT_DEPLOYMENT_SCREENS = [
-  { screenKey: 'SCREEN_1', label: 'Screen 1', clusterLabel: 'Player A (DEVICE_A)' },
-  { screenKey: 'SCREEN_2', label: 'Screen 2', clusterLabel: 'Player B (DEVICE_B)' },
-  { screenKey: 'SCREEN_3', label: 'Screen 3', clusterLabel: 'Player C (DEVICE_C)' },
-] as const;
+import { buildDeploymentScreens } from './deploymentWizard';
+
+export const DEFAULT_DEPLOYMENT_SCREENS = buildDeploymentScreens(3);
 
 export type DefaultScreenKey = (typeof DEFAULT_DEPLOYMENT_SCREENS)[number]['screenKey'];
 
