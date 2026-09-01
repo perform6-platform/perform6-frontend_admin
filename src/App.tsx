@@ -4,11 +4,13 @@ import ContentLibrary from './pages/ContentLibrary';
 import ContentSyncing from './pages/ContentSyncing';
 import Dashboard from './pages/Dashboard';
 import Devices from './pages/Devices';
+import DeviceLogs from './pages/DeviceLogs';
 import DeviceMonitoring from './pages/DeviceMonitoring';
 import Deployments from './pages/Deployments';
 import Rotation from './pages/Rotation';
 import RotationSchedule from './pages/RotationSchedule';
 import Login from './pages/Login';
+import OtaReleases from './pages/OtaReleases';
 import Profile from './pages/Profile';
 import StartupFiles from './pages/StartupFiles';
 import Layout from './components/Layout';
@@ -23,6 +25,7 @@ export default function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/devices" element={<Devices />} />
           <Route path="/device-monitoring" element={<DeviceMonitoring />} />
+          <Route path="/device-logs" element={<DeviceLogs />} />
           <Route path="/content-syncing" element={<ContentSyncing />} />
           <Route path="/content-library" element={<ContentLibrary />} />
           <Route path="/categories" element={<Categories />} />
@@ -30,6 +33,7 @@ export default function App() {
           <Route path="/rotation-schedule" element={<RotationSchedule />} />
           <Route path="/deployments" element={<Deployments />} />
           <Route path="/startup-files" element={<StartupFiles />} />
+          <Route path="/ota-releases" element={<OtaReleases />} />
           <Route path="/profile" element={<Profile />} />
         </Route>
       </Route>
